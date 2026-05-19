@@ -16,6 +16,9 @@ coverage
 # WASM binaries (downloaded via scripts/download-wasm-vad.sh)
 public/wasm/
 
+# coi-serviceworker (copied from node_modules via the `copy:coi-sw` script)
+public/coi-serviceworker.js
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

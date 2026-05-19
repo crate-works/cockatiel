@@ -5,6 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>cockatiel</title>
+    <script>
+      // Enable cross-origin isolation on GitHub Pages (which cannot send COOP/COEP
+      // headers). The dev server sets these headers directly via vite.config.ts;
+      // this shim is the production fallback. credentialless mode lets us still
+      // fetch public catalogue URLs that don't send Cross-Origin-Resource-Policy.
+      window.coi = { coepCredentialless: () => true };
+    </script>
+    <script src="./coi-serviceworker.js"></script>
   </head>
   <body>
     <div id="root"></div>

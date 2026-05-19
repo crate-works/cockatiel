@@ -45,6 +45,23 @@ Open [http://localhost:5173](http://localhost:5173) and drop an audio file to be
 - [Biome](https://biomejs.dev) — linting and formatting
 - [Lefthook](https://github.com/evilmartians/lefthook) — git hooks
 
+## Hosting
+
+Cockatiel uses `SharedArrayBuffer` (for the Silero VAD pthread workers), which
+requires the page to be **cross-origin isolated**. That in turn requires the
+host to send:
+
+- `Cross-Origin-Opener-Policy: same-origin`
+- `Cross-Origin-Embedder-Policy: credentialless`
+
+The Vite dev and preview servers set these headers automatically (see
+`vite.config.ts`). On GitHub Pages — which cannot send custom response
+headers — we ship the [`coi-serviceworker`](https://github.com/gzuidhof/coi-serviceworker)
+shim, which registers a service worker that injects the headers on every
+request. The `credentialless` mode (rather than `require-corp`) is what lets
+cockatiel still fetch public audio URLs from catalogue servers that don't set
+`Cross-Origin-Resource-Policy`.
+
 ## Licence
 
 MIT

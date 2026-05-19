@@ -17,7 +17,9 @@
     "test:ui": "vitest --ui",
     "test:ui:coverage": "vitest --ui --coverage",
     "test:coverage": "vitest run --coverage",
-    "download:wasm": "bash scripts/download-wasm-vad.sh"
+    "download:wasm": "bash scripts/download-wasm-vad.sh",
+    "copy:coi-sw": "cp node_modules/coi-serviceworker/coi-serviceworker.js public/coi-serviceworker.js",
+    "postinstall": "pnpm run copy:coi-sw"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
@@ -25,6 +27,7 @@
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "coi-serviceworker": "^0.1.7",
     "idb-keyval": "^6.2.2",
     "lucide-react": "^1.16.0",
     "react": "^19.2.6",

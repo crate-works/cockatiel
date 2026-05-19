@@ -7,6 +7,10 @@
     // Ambient type augmentations (global `declare` blocks aren't reachable via imports)
     "**/*.d.ts"
   ],
+  "ignoreDependencies": [
+    // Copied to public/ via the `copy:coi-sw` script; knip can't see it through `cp`.
+    "coi-serviceworker"
+  ],
   "commitlint": {
     "entry": ["commitlint.config.ts"]
   }
