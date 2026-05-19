@@ -11,7 +11,7 @@
 set -euo pipefail
 
 # Pinned version — update this when upgrading sherpa-onnx
-PINNED_VERSION="1.12.36"
+PINNED_VERSION="1.13.2"
 VERSION="${1:-$PINNED_VERSION}"
 
 TARBALL="sherpa-onnx-wasm-simd-v${VERSION}-vad.tar.bz2"
