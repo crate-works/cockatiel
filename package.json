@@ -11,6 +11,7 @@
     "lint:biome": "biome check .",
     "lint:knip": "knip",
     "lint:types": "tsc -b",
+    "lint:wasm-version": "bash scripts/check-wasm-vad-version.sh",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
