@@ -5,6 +5,7 @@ import { type SessionPayload, upsertSession } from './storage';
 export const SAVE_DEBOUNCE_MS = 500;
 
 const pickPayload = (state: ReturnType<typeof useAppStore.getState>): SessionPayload => ({
+  ...(state.catalogSource ? { catalogSource: state.catalogSource } : {}),
   ...(state.fileHandle ? { fileHandle: state.fileHandle } : {}),
   fingerprint: state.fingerprint,
   mediaDuration: state.mediaDuration,

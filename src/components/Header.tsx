@@ -1,5 +1,7 @@
 import { ArrowLeftIcon, MoreHorizontalIcon, Trash2Icon } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import { SignInMenu } from '@/components/auth/SignInMenu';
+import { SourceBadge } from '@/components/catalog/SourceBadge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +21,7 @@ export const Header = () => {
   const appPhase = useAppStore((s) => s.appPhase);
   const title = useAppStore((s) => s.title);
   const fingerprint = useAppStore((s) => s.fingerprint);
+  const catalogSource = useAppStore((s) => s.catalogSource);
   const setTitle = useAppStore((s) => s.setTitle);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -46,15 +49,20 @@ export const Header = () => {
           </Button>
         )}
         {showEditor && (
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            title={mediaFileName}
-            placeholder={mediaFileName || 'Untitled'}
-            className="ml-auto h-8 w-64 max-w-full truncate rounded-md border border-transparent bg-transparent px-2 text-sm font-medium text-foreground outline-none transition-colors hover:border-border hover:bg-muted/40 focus:border-ring focus:bg-background focus:ring-3 focus:ring-ring/50"
-          />
+          <div className="ml-auto flex items-center gap-2">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              title={mediaFileName}
+              placeholder={mediaFileName || 'Untitled'}
+              className="h-8 w-64 max-w-full truncate rounded-md border border-transparent bg-transparent px-2 font-medium text-foreground text-sm outline-none transition-colors hover:border-border hover:bg-muted/40 focus:border-ring focus:bg-background focus:ring-3 focus:ring-ring/50"
+            />
+            {catalogSource && <SourceBadge source={catalogSource} live />}
+          </div>
         )}
+        {!showEditor && <div className="ml-auto" />}
+        <SignInMenu />
         {canDelete && (
           <DropdownMenu>
             <DropdownMenuTrigger

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import type { CatalogSource } from '@/lib/arocapi';
 import { resampleTo16kMono } from '@/lib/audio-resample';
 import { sha256Hex } from '@/lib/persistence/fingerprint';
 import { loadSession } from '@/lib/persistence/storage';
@@ -8,6 +9,7 @@ import { getErrorMessage, isAbortError, pluralizeSegment, titleFromFileName } fr
 import { segment } from '@/lib/vad';
 
 export interface ProcessFileOptions {
+  catalogSource?: CatalogSource;
   handle?: FileSystemFileHandle;
   sourceUrl?: string;
 }
@@ -21,7 +23,7 @@ export const useAutoSegment = () => {
   }, []);
 
   const processFile = useCallback(async (file: File, options: ProcessFileOptions = {}) => {
-    const { handle, sourceUrl } = options;
+    const { catalogSource, handle, sourceUrl } = options;
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -65,6 +67,9 @@ export const useAutoSegment = () => {
         if (sourceUrl) {
           store.setSourceUrl(sourceUrl);
         }
+        if (catalogSource) {
+          store.setCatalogSource(catalogSource);
+        }
         if (file.name !== existing.mediaFileName) {
           store.setMediaFile(file.name, existing.mediaDuration);
         }
@@ -101,6 +106,11 @@ export const useAutoSegment = () => {
       }
       if (sourceUrl) {
         store.setSourceUrl(sourceUrl);
+      }
+      if (catalogSource) {
+        store.setCatalogSource(catalogSource);
+      } else {
+        store.setCatalogSource(null);
       }
       store.setProgress(0.1);
 

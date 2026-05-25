@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { type CatalogSource, formatArocapiError, getProvider, resolveFileUrl } from '@/lib/arocapi';
 import { loadSessionByUrl } from '@/lib/persistence/storage';
 import { getSkipDownloadConfirm, setSkipDownloadConfirm } from '@/lib/preferences';
 import { fetchRemoteAudio, formatRemoteAudioError, inspectRemoteAudio, type RemoteAudioMeta, validateUrl } from '@/lib/remote-audio';
@@ -21,6 +22,7 @@ interface PendingConfirmationView {
 export interface UseRemoteAudioLoadResult {
   cancel: () => void;
   loadFromUrl: (rawUrl: string) => Promise<void>;
+  loadFromCatalog: (source: CatalogSource) => Promise<void>;
   pendingConfirmation: PendingConfirmationView | null;
   resolveConfirmation: (proceed: boolean, dontAskAgain: boolean) => void;
 }
@@ -140,7 +142,97 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile }: UseRemoteAudio
     [processFile, requestConfirmation, setAudioFile],
   );
 
-  return { cancel, loadFromUrl, pendingConfirmation, resolveConfirmation };
+  const loadFromCatalog = useCallback(
+    async (source: CatalogSource) => {
+      const provider = getProvider(source.providerId);
+      if (!provider) {
+        toast.error(`Unknown catalog provider: ${source.providerId}`);
+        return;
+      }
+
+      downloadAbortRef.current?.abort();
+      const controller = new AbortController();
+      downloadAbortRef.current = controller;
+      const { signal } = controller;
+
+      const store = useAppStore.getState();
+      const handleFailure = (error: unknown) => {
+        store.setAppPhase('upload');
+        store.setStatus('');
+        if (isAbortError(error)) {
+          return;
+        }
+        toast.error(formatArocapiError(error));
+      };
+
+      store.setAppPhase('processing');
+      store.setStatus('Resolving file from catalog...');
+      store.setProgress(0);
+
+      // Step 1: resolve the signed media URL from arocapi.
+      let resolved: string;
+      try {
+        resolved = await resolveFileUrl(provider, source.fileId, { signal });
+      } catch (error) {
+        handleFailure(error);
+        return;
+      }
+
+      // Step 2: reuse the existing remote-audio pipeline (inspect → fetch → process)
+      // but skip the ConfirmDownloadDialog — the drawer is the confirmation.
+      let url: URL;
+      try {
+        url = validateUrl(resolved);
+      } catch (error) {
+        store.setAppPhase('upload');
+        store.setStatus('');
+        toast.error(formatRemoteAudioError(error));
+        return;
+      }
+
+      store.setStatus('Inspecting file...');
+      let meta: RemoteAudioMeta;
+      try {
+        meta = await inspectRemoteAudio(url, signal);
+      } catch (error) {
+        store.setAppPhase('upload');
+        store.setStatus('');
+        if (!isAbortError(error)) {
+          toast.error(formatRemoteAudioError(error));
+        }
+        return;
+      }
+
+      store.setStatus('Downloading audio...');
+      let file: File;
+      try {
+        file = await fetchRemoteAudio(url, {
+          filename: meta.filename,
+          onProgress: (progress) => {
+            if (typeof progress.fraction === 'number') {
+              store.setProgress(progress.fraction);
+            }
+          },
+          signal,
+        });
+      } catch (error) {
+        store.setAppPhase('upload');
+        store.setStatus('');
+        if (!isAbortError(error)) {
+          toast.error(formatRemoteAudioError(error));
+        }
+        return;
+      }
+
+      // Deliberately don't pass sourceUrl: the resolved URL is a short-lived signed
+      // S3 link that would be useless on session re-open. catalogSource carries
+      // everything needed to re-resolve a fresh URL on demand.
+      await processFile(file, { catalogSource: source });
+    },
+    [processFile],
+  );
+
+  return { cancel, loadFromCatalog, loadFromUrl, pendingConfirmation, resolveConfirmation };
 };
 
 const runBackgroundFetch = async (

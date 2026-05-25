@@ -1,9 +1,11 @@
+import type { CatalogSource } from '@/lib/arocapi';
 import type { ExportData } from '@/lib/export/types';
 import type { VadConfig } from '@/lib/vad';
 
 export const SCHEMA_VERSION = 1 as const;
 
 export interface StoredSession extends ExportData {
+  catalogSource?: CatalogSource;
   createdAt: number;
   fileHandle?: FileSystemFileHandle;
   fingerprint: string;
@@ -14,6 +16,7 @@ export interface StoredSession extends ExportData {
 }
 
 export interface SessionSummary {
+  catalogSource?: CatalogSource;
   fingerprint: string;
   mediaDuration: number;
   mediaFileName: string;

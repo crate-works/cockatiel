@@ -1,8 +1,12 @@
+import { LibraryIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { SourceBadge } from '@/components/catalog/SourceBadge';
 import { DropBar } from '@/components/DropBar';
 import { DropZone } from '@/components/DropZone';
 import { UrlDisclosure } from '@/components/UrlDisclosure';
+import { Button } from '@/components/ui/button';
+import type { CatalogSource } from '@/lib/arocapi';
 import { getStorageEstimate, isPersisted, type StorageUsage } from '@/lib/persistence/grant';
 import { listSessions, loadSession } from '@/lib/persistence/storage';
 import type { SessionSummary } from '@/lib/persistence/types';
@@ -17,6 +21,7 @@ interface StorageInfo extends StorageUsage {
 interface WorkbenchProps {
   onFileSelected: (file: File, handle?: FileSystemFileHandle) => void;
   onLoadUrl: (url: string) => void;
+  onLoadCatalog: (source: CatalogSource) => Promise<void>;
 }
 
 const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
@@ -80,9 +85,10 @@ const SourceHostBadge = ({ url }: { url: string }) => {
   );
 };
 
-export const Workbench = ({ onFileSelected, onLoadUrl }: WorkbenchProps) => {
+export const Workbench = ({ onFileSelected, onLoadUrl, onLoadCatalog }: WorkbenchProps) => {
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
+  const enterCatalogSearch = useAppStore((s) => s.enterCatalogSearch);
 
   const reload = useCallback(async () => {
     const list = await listSessions();
@@ -129,10 +135,24 @@ export const Workbench = ({ onFileSelected, onLoadUrl }: WorkbenchProps) => {
           console.error('Failed to request file permission:', err);
         }
       }
+      // Catalog-sourced sessions can re-fetch their own audio without user
+      // intervention. processFile will see the existing fingerprint in
+      // IndexedDB and skip VAD, restoring segments instantly.
+      if (session.catalogSource) {
+        void onLoadCatalog(session.catalogSource);
+        return;
+      }
+      // URL-sourced sessions likewise — loadFromUrl looks up the cached
+      // session by URL and background-fetches the bytes.
+      if (session.sourceUrl) {
+        onLoadUrl(session.sourceUrl);
+        return;
+      }
+      // Local-file session with a stale handle — fall back to manual re-drop.
       useAppStore.getState().hydrateFromStoredSession(session);
       useAppStore.getState().setAppPhase('upload');
     },
-    [onFileSelected, reload],
+    [onFileSelected, onLoadCatalog, onLoadUrl, reload],
   );
 
   if (sessions === null) {
@@ -150,6 +170,12 @@ export const Workbench = ({ onFileSelected, onLoadUrl }: WorkbenchProps) => {
           </p>
         </div>
         <DropZone onFileSelected={onFileSelected} />
+        <div className="mt-3 flex justify-center">
+          <Button variant="outline" size="sm" onClick={enterCatalogSearch}>
+            <LibraryIcon className="h-4 w-4" />
+            Browse catalog
+          </Button>
+        </div>
         <div className="mt-2 w-full max-w-md">
           <UrlDisclosure onLoad={onLoadUrl} />
         </div>
@@ -163,6 +189,12 @@ export const Workbench = ({ onFileSelected, onLoadUrl }: WorkbenchProps) => {
   return (
     <div className="mx-auto max-w-4xl space-y-5 py-8">
       <DropBar onFileSelected={onFileSelected} />
+      <div className="flex justify-center">
+        <Button variant="outline" size="sm" onClick={enterCatalogSearch}>
+          <LibraryIcon className="h-4 w-4" />
+          Browse catalog
+        </Button>
+      </div>
       <UrlDisclosure onLoad={onLoadUrl} />
 
       <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -203,7 +235,11 @@ export const Workbench = ({ onFileSelected, onLoadUrl }: WorkbenchProps) => {
                       <p className="truncate font-medium focus-visible:underline">{session.title}</p>
                       <p className="flex items-center gap-1.5 truncate font-mono text-xs text-muted-foreground">
                         <span className="truncate">{session.mediaFileName}</span>
-                        {session.sourceUrl && <SourceHostBadge url={session.sourceUrl} />}
+                        {session.catalogSource ? (
+                          <SourceBadge source={session.catalogSource} />
+                        ) : (
+                          session.sourceUrl && <SourceHostBadge url={session.sourceUrl} />
+                        )}
                       </p>
                     </button>
                   </td>

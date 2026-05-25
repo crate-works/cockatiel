@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import type { CatalogSource } from './arocapi';
+import { DEFAULT_PROVIDER_ID, type ProviderId } from './arocapi';
 import { DEFAULT_VAD_CONFIG, MAX_SPEAKERS } from './constants';
 import { deleteSession } from './persistence/storage';
 import type { StoredSession } from './persistence/types';
@@ -7,10 +9,30 @@ import { SegmentInspect, SegmentOps } from './segment-ops';
 import { titleFromFileName } from './utils';
 import type { VadConfig, VadSegment } from './vad';
 
-type AppPhase = 'workbench' | 'upload' | 'processing' | 'ready';
+type AppPhase = 'workbench' | 'upload' | 'catalog-search' | 'processing' | 'ready';
+
+interface CatalogSearchSlice {
+  providerId: ProviderId;
+  query: string;
+  filters: Record<string, string[]>;
+  page: number;
+  selectedEntityId: string | null;
+  drawerOpen: boolean;
+}
+
+const initialCatalogSearch: CatalogSearchSlice = {
+  providerId: DEFAULT_PROVIDER_ID,
+  query: '',
+  filters: {},
+  page: 1,
+  selectedEntityId: null,
+  drawerOpen: false,
+};
 
 interface AppState {
   appPhase: AppPhase;
+  catalogSearch: CatalogSearchSlice;
+  catalogSource: CatalogSource | null;
   defaultSpeaker: number;
   fileHandle: FileSystemFileHandle | null;
   fingerprint: string;
@@ -47,6 +69,15 @@ interface AppState {
   setFingerprint: (fingerprint: string) => void;
   setMediaFile: (name: string, duration: number) => void;
   setProgress: (fraction: number) => void;
+  setCatalogProvider: (providerId: ProviderId) => void;
+  setCatalogQuery: (query: string) => void;
+  setCatalogFilters: (filters: Record<string, string[]>) => void;
+  setCatalogPage: (page: number) => void;
+  openCatalogEntity: (entityId: string) => void;
+  closeCatalogDrawer: () => void;
+  enterCatalogSearch: () => void;
+  exitCatalogSearch: () => void;
+  setCatalogSource: (source: CatalogSource | null) => void;
   setSourceUrl: (url: string | null) => void;
   setSpeakerCount: (count: number) => void;
   setSpeakerName: (index: number, name: string) => void;
@@ -66,6 +97,8 @@ const makeCtx = (state: AppState): SegmentCtx => ({
 
 const initialState = {
   appPhase: 'workbench' as AppPhase,
+  catalogSearch: { ...initialCatalogSearch },
+  catalogSource: null as CatalogSource | null,
   defaultSpeaker: 0,
   fileHandle: null as FileSystemFileHandle | null,
   fingerprint: '',
@@ -92,10 +125,46 @@ export const useAppStore = create<AppState>((set, get) => ({
   setStatus: (message) => set({ statusMessage: message }),
   setProgress: (fraction) => set({ processingProgress: fraction }),
   setSourceUrl: (url) => set({ sourceUrl: url }),
+  setCatalogSource: (source) => set({ catalogSource: source }),
   setTitle: (title) => set({ title }),
+
+  setCatalogProvider: (providerId) =>
+    set((state) => ({
+      catalogSearch: { ...state.catalogSearch, providerId, page: 1, filters: {} },
+    })),
+
+  setCatalogQuery: (query) =>
+    set((state) => ({
+      catalogSearch: { ...state.catalogSearch, query, page: 1 },
+    })),
+
+  setCatalogFilters: (filters) =>
+    set((state) => ({
+      catalogSearch: { ...state.catalogSearch, filters, page: 1 },
+    })),
+
+  setCatalogPage: (page) =>
+    set((state) => ({
+      catalogSearch: { ...state.catalogSearch, page },
+    })),
+
+  openCatalogEntity: (entityId) =>
+    set((state) => ({
+      catalogSearch: { ...state.catalogSearch, selectedEntityId: entityId, drawerOpen: true },
+    })),
+
+  closeCatalogDrawer: () =>
+    set((state) => ({
+      catalogSearch: { ...state.catalogSearch, drawerOpen: false, selectedEntityId: null },
+    })),
+
+  enterCatalogSearch: () => set({ appPhase: 'catalog-search' }),
+
+  exitCatalogSearch: () => set({ appPhase: 'upload' }),
 
   hydrateFromStoredSession: (session) =>
     set({
+      catalogSource: session.catalogSource ?? null,
       fileHandle: session.fileHandle ?? null,
       fingerprint: session.fingerprint,
       mediaDuration: session.mediaDuration,

@@ -73,6 +73,7 @@ export const listSessions = async (): Promise<SessionSummary[]> => {
   return all
     .filter(([, s]) => s.schemaVersion === SCHEMA_VERSION)
     .map(([, s]) => ({
+      ...(s.catalogSource ? { catalogSource: s.catalogSource } : {}),
       fingerprint: s.fingerprint,
       mediaDuration: s.mediaDuration,
       mediaFileName: s.mediaFileName,

@@ -1,7 +1,10 @@
+import { LibraryIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnnotationTier } from '@/components/AnnotationTier';
+import { AuthCallback } from '@/components/auth/AuthCallback';
 import { ConfirmDownloadDialog } from '@/components/ConfirmDownloadDialog';
 import { Controls } from '@/components/Controls';
+import { CatalogSearchPage } from '@/components/catalog/CatalogSearchPage';
 import { DropZone } from '@/components/DropZone';
 import { ExportMenu } from '@/components/ExportMenu';
 import { Footer } from '@/components/Footer';
@@ -13,6 +16,7 @@ import { RestoreBanner } from '@/components/RestoreBanner';
 import { SpeakerPanel } from '@/components/SpeakerPanel';
 import { StatusBar } from '@/components/StatusBar';
 import { UrlDisclosure } from '@/components/UrlDisclosure';
+import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
 import { VadSettings } from '@/components/VadSettings';
 import { type TimelineViewport, useMediaPlayer, Waveform } from '@/components/Waveform';
@@ -22,6 +26,7 @@ import { useAutoSegment } from '@/hooks/useAutoSegment';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useRemoteAudioLoad } from '@/hooks/useRemoteAudioLoad';
 import { startAutoSave } from '@/lib/persistence/subscribe';
+import { getLastProviderId } from '@/lib/preferences';
 import { useAppStore } from '@/lib/store';
 
 const defaultViewport: TimelineViewport = {
@@ -38,12 +43,30 @@ const WorkspaceKeyboardShortcuts = () => {
 
 const App = () => {
   const appPhase = useAppStore((s) => s.appPhase);
+  const enterCatalogSearch = useAppStore((s) => s.enterCatalogSearch);
   const { audioFile, cancel: cancelSegment, processFile, setAudioFile } = useAutoSegment();
-  const { cancel: cancelDownload, loadFromUrl, pendingConfirmation, resolveConfirmation } = useRemoteAudioLoad({ processFile, setAudioFile });
+  const {
+    cancel: cancelDownload,
+    loadFromCatalog,
+    loadFromUrl,
+    pendingConfirmation,
+    resolveConfirmation,
+  } = useRemoteAudioLoad({
+    processFile,
+    setAudioFile,
+  });
   const [viewport, setViewport] = useState<TimelineViewport>(defaultViewport);
   const [helpOpen, setHelpOpen] = useState(false);
+  // The OIDC callback lands at /auth/callback?code=…&state=…. We detect it once
+  // on mount and render <AuthCallback> in place of the normal phase machine,
+  // then hand control back via onDone once tokens are stored.
+  const [isAuthCallback, setIsAuthCallback] = useState(() => window.location.pathname === '/auth/callback');
 
   useEffect(() => startAutoSave(), []);
+
+  useEffect(() => {
+    useAppStore.getState().setCatalogProvider(getLastProviderId());
+  }, []);
 
   const triggeredQueryParamRef = useRef(false);
   useEffect(() => {
@@ -80,43 +103,57 @@ const App = () => {
       <Header />
 
       <main className="mx-auto max-w-6xl px-4 py-6">
-        {appPhase === 'workbench' && <Workbench onFileSelected={handleFileSelected} onLoadUrl={loadFromUrl} />}
-
-        {appPhase === 'upload' && (
+        {isAuthCallback ? (
+          <AuthCallback onDone={() => setIsAuthCallback(false)} />
+        ) : (
           <>
-            <RestoreBanner onResume={handleFileSelected} />
-            <div className="flex flex-col items-center">
-              <DropZone onFileSelected={handleFileSelected} />
-              <div className="mt-2 w-full max-w-md">
-                <UrlDisclosure onLoad={loadFromUrl} />
-              </div>
-            </div>
-          </>
-        )}
+            {appPhase === 'workbench' && <Workbench onFileSelected={handleFileSelected} onLoadUrl={loadFromUrl} onLoadCatalog={loadFromCatalog} />}
 
-        {appPhase === 'processing' && <StatusBar onCancel={handleCancelProcessing} />}
+            {appPhase === 'upload' && (
+              <>
+                <RestoreBanner onResume={handleFileSelected} />
+                <div className="flex flex-col items-center">
+                  <DropZone onFileSelected={handleFileSelected} />
+                  <div className="mt-3 flex justify-center">
+                    <Button variant="outline" size="sm" onClick={enterCatalogSearch}>
+                      <LibraryIcon className="h-4 w-4" />
+                      Browse catalog
+                    </Button>
+                  </div>
+                  <div className="mt-2 w-full max-w-md">
+                    <UrlDisclosure onLoad={loadFromUrl} />
+                  </div>
+                </div>
+              </>
+            )}
 
-        {appPhase === 'ready' && (
-          <div className="space-y-3">
-            <Waveform audioFile={audioFile} onViewportChange={setViewport}>
-              <WorkspaceKeyboardShortcuts />
-              <div className="sticky top-12 z-30 -mx-4 flex items-center justify-between border-b border-border bg-card/90 px-4 py-2 backdrop-blur">
-                <Controls />
-                <div className="flex items-center gap-3">
-                  <ZoomControl />
-                  <LoopToggle />
-                  <ExportMenu />
-                  <HelpButton onOpen={() => setHelpOpen(true)} />
+            {appPhase === 'catalog-search' && <CatalogSearchPage onLoadCatalog={loadFromCatalog} />}
+
+            {appPhase === 'processing' && <StatusBar onCancel={handleCancelProcessing} />}
+
+            {appPhase === 'ready' && (
+              <div className="space-y-3">
+                <Waveform audioFile={audioFile} onViewportChange={setViewport}>
+                  <WorkspaceKeyboardShortcuts />
+                  <div className="sticky top-12 z-30 -mx-4 flex items-center justify-between border-b border-border bg-card/90 px-4 py-2 backdrop-blur">
+                    <Controls />
+                    <div className="flex items-center gap-3">
+                      <ZoomControl />
+                      <LoopToggle />
+                      <ExportMenu />
+                      <HelpButton onOpen={() => setHelpOpen(true)} />
+                    </div>
+                  </div>
+                  <AnnotationTier label="Transcript" viewport={viewport} />
+                </Waveform>
+
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  <SpeakerPanel />
+                  <VadSettings onResegment={handleResegment} />
                 </div>
               </div>
-              <AnnotationTier label="Transcript" viewport={viewport} />
-            </Waveform>
-
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              <SpeakerPanel />
-              <VadSettings onResegment={handleResegment} />
-            </div>
-          </div>
+            )}
+          </>
         )}
       </main>
 
