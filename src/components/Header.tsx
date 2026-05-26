@@ -1,6 +1,5 @@
 import { ArrowLeftIcon, MoreHorizontalIcon, Trash2Icon } from 'lucide-react';
 import { useCallback, useState } from 'react';
-import { SignInMenu } from '@/components/auth/SignInMenu';
 import { SourceBadge } from '@/components/catalog/SourceBadge';
 import {
   AlertDialog,
@@ -62,7 +61,6 @@ export const Header = () => {
           </div>
         )}
         {!showEditor && <div className="ml-auto" />}
-        <SignInMenu />
         {canDelete && (
           <DropdownMenu>
             <DropdownMenuTrigger

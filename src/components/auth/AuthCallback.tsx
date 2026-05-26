@@ -1,7 +1,7 @@
 import { AlertCircleIcon, Loader2Icon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { completeSignIn, useAuthStore } from '@/lib/auth';
+import { completeSignIn, HOME_PATH, useAuthStore } from '@/lib/auth';
 
 interface AuthCallbackProps {
   onDone: () => void;
@@ -25,7 +25,7 @@ export const AuthCallback = ({ onDone }: AuthCallbackProps) => {
         // Strip the ?code= and ?state= from the address bar before handing back
         // to the app — leaving them in is ugly and the browser would re-trigger
         // the callback on a refresh.
-        window.history.replaceState({}, '', '/');
+        window.history.replaceState({}, '', HOME_PATH);
         onDone();
       } catch (err) {
         if (cancelled) {
@@ -49,7 +49,7 @@ export const AuthCallback = ({ onDone }: AuthCallbackProps) => {
           variant="outline"
           size="sm"
           onClick={() => {
-            window.history.replaceState({}, '', '/');
+            window.history.replaceState({}, '', HOME_PATH);
             onDone();
           }}
         >

@@ -5,7 +5,15 @@ import type { Provider } from '@/lib/arocapi/types';
 import { consumePending, savePending } from './storage';
 import type { TokenSet, UserClaims } from './types';
 
-const oidcRedirectUri = (): string => `${window.location.origin}/auth/callback`;
+// Vite serves prod from a sub-path (e.g. `/cockatiel/` on GitHub Pages) but dev
+// from `/`. `import.meta.env.BASE_URL` resolves both at build time without an
+// env var, and both the redirect URI we send to the IdP and the callback-path
+// check in App.tsx need to honour it.
+const baseUrl = import.meta.env.BASE_URL;
+export const AUTH_CALLBACK_PATH = `${baseUrl.replace(/\/$/, '')}/auth/callback`;
+export const HOME_PATH = baseUrl;
+
+const oidcRedirectUri = (): string => `${window.location.origin}${AUTH_CALLBACK_PATH}`;
 
 // Cache discovered AuthorizationServer per issuer (each Provider may target a
 // different IdP).

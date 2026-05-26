@@ -25,6 +25,7 @@ import { ZoomControl } from '@/components/ZoomControl';
 import { useAutoSegment } from '@/hooks/useAutoSegment';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useRemoteAudioLoad } from '@/hooks/useRemoteAudioLoad';
+import { AUTH_CALLBACK_PATH } from '@/lib/auth';
 import { startAutoSave } from '@/lib/persistence/subscribe';
 import { getLastProviderId } from '@/lib/preferences';
 import { useAppStore } from '@/lib/store';
@@ -57,10 +58,10 @@ const App = () => {
   });
   const [viewport, setViewport] = useState<TimelineViewport>(defaultViewport);
   const [helpOpen, setHelpOpen] = useState(false);
-  // The OIDC callback lands at /auth/callback?code=…&state=…. We detect it once
-  // on mount and render <AuthCallback> in place of the normal phase machine,
-  // then hand control back via onDone once tokens are stored.
-  const [isAuthCallback, setIsAuthCallback] = useState(() => window.location.pathname === '/auth/callback');
+  // The OIDC callback lands at <base>/auth/callback?code=…&state=…. We detect
+  // it once on mount and render <AuthCallback> in place of the normal phase
+  // machine, then hand control back via onDone once tokens are stored.
+  const [isAuthCallback, setIsAuthCallback] = useState(() => window.location.pathname === AUTH_CALLBACK_PATH);
 
   useEffect(() => startAutoSave(), []);
 
