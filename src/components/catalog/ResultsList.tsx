@@ -1,4 +1,4 @@
-import { AlertCircleIcon } from 'lucide-react';
+import { AlertCircleIcon, LockIcon } from 'lucide-react';
 import { formatArocapiError, type SearchEntity } from '@/lib/arocapi';
 
 interface ResultsListProps {
@@ -52,26 +52,32 @@ export const ResultsList = ({ entities, loading, error, total, searchTime, onSel
         {total.toLocaleString()} result{total === 1 ? '' : 's'} in {searchTime} ms
       </p>
       <ul className="space-y-2">
-        {entities.map((entity) => (
-          <li key={entity.id}>
-            <button
-              type="button"
-              onClick={() => onSelect(entity.id)}
-              className="w-full rounded-lg border border-border p-3 text-left transition-colors hover:border-foreground/30 hover:bg-muted/30"
-            >
-              <div className="flex items-baseline justify-between gap-3">
-                <h3 className="truncate font-medium text-sm">{entity.name || 'Untitled'}</h3>
-                <span className="shrink-0 text-muted-foreground text-xs italic">{entity.id}</span>
-              </div>
-              {entity.description && <p className="mt-1 line-clamp-2 text-muted-foreground text-xs">{entity.description}</p>}
-              {entity.memberOf?.name && (
-                <p className="mt-1 text-muted-foreground text-xs">
-                  In <span className="font-medium text-foreground/80">{entity.memberOf.name}</span>
-                </p>
-              )}
-            </button>
-          </li>
-        ))}
+        {entities.map((entity) => {
+          const contentLocked = entity.access?.content === false;
+          return (
+            <li key={entity.id}>
+              <button
+                type="button"
+                onClick={() => onSelect(entity.id)}
+                className="w-full rounded-lg border border-border p-3 text-left transition-colors hover:border-foreground/30 hover:bg-muted/30"
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 className="flex min-w-0 items-center gap-1.5 truncate font-medium text-sm">
+                    {contentLocked && <LockIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-label="Content restricted" />}
+                    <span className="truncate">{entity.name || 'Untitled'}</span>
+                  </h3>
+                  <span className="shrink-0 text-muted-foreground text-xs italic">{entity.id}</span>
+                </div>
+                {entity.description && <p className="mt-1 line-clamp-2 text-muted-foreground text-xs">{entity.description}</p>}
+                {entity.memberOf?.name && (
+                  <p className="mt-1 text-muted-foreground text-xs">
+                    In <span className="font-medium text-foreground/80">{entity.memberOf.name}</span>
+                  </p>
+                )}
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

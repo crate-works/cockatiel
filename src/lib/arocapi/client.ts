@@ -27,8 +27,8 @@ const mapNetworkError = (error: unknown, signal: AbortSignal): ArocapiError => {
   return new ArocapiError('network', message || 'Network error.');
 };
 
-const withAuth = (init: RequestInit): RequestInit => {
-  const token = getAccessToken();
+const withAuth = (providerId: string, init: RequestInit): RequestInit => {
+  const token = getAccessToken(providerId);
   if (!token) {
     return init;
   }
@@ -37,10 +37,10 @@ const withAuth = (init: RequestInit): RequestInit => {
   return { ...init, headers };
 };
 
-const requestJson = async <T>(url: string, init: RequestInit, signal: AbortSignal): Promise<T> => {
+const requestJson = async <T>(providerId: string, url: string, init: RequestInit, signal: AbortSignal): Promise<T> => {
   let response: Response;
   try {
-    response = await fetch(url, { ...withAuth(init), signal });
+    response = await fetch(url, { ...withAuth(providerId, init), signal });
   } catch (error) {
     throw mapNetworkError(error, signal);
   }
@@ -60,6 +60,7 @@ export interface ClientOptions {
 
 export const searchEntities = (provider: Provider, request: SearchRequest, opts: ClientOptions): Promise<SearchResponse> =>
   requestJson<SearchResponse>(
+    provider.id,
     joinUrl(provider.baseUrl, '/search'),
     {
       method: 'POST',
@@ -70,7 +71,7 @@ export const searchEntities = (provider: Provider, request: SearchRequest, opts:
   );
 
 export const getEntity = (provider: Provider, id: string, opts: ClientOptions): Promise<Entity> =>
-  requestJson<Entity>(joinUrl(provider.baseUrl, `/entity/${encodeURIComponent(id)}`), { headers: { Accept: 'application/json' } }, opts.signal);
+  requestJson<Entity>(provider.id, joinUrl(provider.baseUrl, `/entity/${encodeURIComponent(id)}`), { headers: { Accept: 'application/json' } }, opts.signal);
 
 export interface ListEntitiesParams {
   memberOf?: string;
@@ -98,7 +99,7 @@ export const listFiles = (provider: Provider, params: ListFilesParams, opts: Cli
   }
   const qs = search.toString();
   const url = joinUrl(provider.baseUrl, `/files${qs ? `?${qs}` : ''}`);
-  return requestJson<FilesResponse>(url, { headers: { Accept: 'application/json' } }, opts.signal);
+  return requestJson<FilesResponse>(provider.id, url, { headers: { Accept: 'application/json' } }, opts.signal);
 };
 
 export const listEntities = (provider: Provider, params: ListEntitiesParams, opts: ClientOptions): Promise<EntitiesResponse> => {
@@ -117,7 +118,7 @@ export const listEntities = (provider: Provider, params: ListEntitiesParams, opt
   }
   const qs = search.toString();
   const url = joinUrl(provider.baseUrl, `/entities${qs ? `?${qs}` : ''}`);
-  return requestJson<EntitiesResponse>(url, { headers: { Accept: 'application/json' } }, opts.signal);
+  return requestJson<EntitiesResponse>(provider.id, url, { headers: { Accept: 'application/json' } }, opts.signal);
 };
 
 // Resolves a file ID to a downloadable URL. With `noRedirect=true`, arocapi
@@ -126,7 +127,7 @@ export const listEntities = (provider: Provider, params: ListEntitiesParams, opt
 // the browser auto-follow into a CORS-restricted response.
 export const resolveFileUrl = async (provider: Provider, fileId: string, opts: ClientOptions): Promise<string> => {
   const url = joinUrl(provider.baseUrl, `/file/${encodeURIComponent(fileId)}?noRedirect=true&disposition=inline`);
-  const body = await requestJson<{ location?: string }>(url, { headers: { Accept: 'application/json' } }, opts.signal);
+  const body = await requestJson<{ location?: string }>(provider.id, url, { headers: { Accept: 'application/json' } }, opts.signal);
   if (!body.location) {
     throw new ArocapiError('unknown', 'arocapi did not return a file location.');
   }

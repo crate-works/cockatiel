@@ -1,43 +1,59 @@
 import * as oauth from 'oauth4webapi';
-import { OIDC_CLIENT_ID, OIDC_ISSUER, OIDC_SCOPES, oidcRedirectUri } from './config';
+// Direct paths — same circular-init avoidance as ./store.
+import { getProvider } from '@/lib/arocapi/providers';
+import type { Provider } from '@/lib/arocapi/types';
 import { consumePending, savePending } from './storage';
 import type { TokenSet, UserClaims } from './types';
 
-// Cache the discovered AuthorizationServer for the tab session — discovery is
-// a 1-2 second network hit and the metadata doesn't change between page loads.
-let serverPromise: Promise<oauth.AuthorizationServer> | null = null;
+const oidcRedirectUri = (): string => `${window.location.origin}/auth/callback`;
 
-const discover = (): Promise<oauth.AuthorizationServer> => {
-  if (!serverPromise) {
-    const issuerUrl = new URL(OIDC_ISSUER);
-    serverPromise = oauth.discoveryRequest(issuerUrl, { algorithm: 'oidc' }).then((response) => oauth.processDiscoveryResponse(issuerUrl, response));
+// Cache discovered AuthorizationServer per issuer (each Provider may target a
+// different IdP).
+const serverPromises = new Map<string, Promise<oauth.AuthorizationServer>>();
+
+const discover = (issuer: string): Promise<oauth.AuthorizationServer> => {
+  let promise = serverPromises.get(issuer);
+  if (!promise) {
+    const issuerUrl = new URL(issuer);
+    promise = oauth.discoveryRequest(issuerUrl, { algorithm: 'oidc' }).then((response) => oauth.processDiscoveryResponse(issuerUrl, response));
+    serverPromises.set(issuer, promise);
   }
-  return serverPromise;
+  return promise;
 };
 
-const client: oauth.Client = { client_id: OIDC_CLIENT_ID };
-// PKCE public client — no secret. The verifier proves possession of the
-// auth-request originator instead.
+const requireOidc = (provider: Provider) => {
+  if (!provider.oidc) {
+    throw new Error(`Provider "${provider.id}" has no OIDC configuration.`);
+  }
+  return provider.oidc;
+};
+
+// PKCE public client — no secret. The verifier proves possession.
 const clientAuth = oauth.None();
 
-// Step 1 of the auth flow: redirect the browser to the IdP's authorization
-// endpoint. PKCE verifier + state are stashed in sessionStorage so the
-// callback handler can match them after the redirect round-trip.
-export const beginSignIn = async (): Promise<void> => {
-  const server = await discover();
+// Step 1: redirect the browser to the IdP's authorization endpoint.
+// PKCE verifier + state + providerId stashed so the callback can match.
+export const beginSignIn = async (providerId: string): Promise<void> => {
+  const provider = getProvider(providerId);
+  if (!provider) {
+    throw new Error(`Unknown provider: ${providerId}`);
+  }
+  const oidc = requireOidc(provider);
+  const server = await discover(oidc.issuer);
+
   const verifier = oauth.generateRandomCodeVerifier();
   const challenge = await oauth.calculatePKCECodeChallenge(verifier);
   const state = oauth.generateRandomState();
-  savePending(verifier, state);
+  savePending(providerId, verifier, state);
 
   if (!server.authorization_endpoint) {
     throw new Error('OIDC discovery returned no authorization_endpoint.');
   }
   const url = new URL(server.authorization_endpoint);
   url.searchParams.set('response_type', 'code');
-  url.searchParams.set('client_id', OIDC_CLIENT_ID);
+  url.searchParams.set('client_id', oidc.clientId);
   url.searchParams.set('redirect_uri', oidcRedirectUri());
-  url.searchParams.set('scope', OIDC_SCOPES);
+  url.searchParams.set('scope', oidc.scopes);
   url.searchParams.set('state', state);
   url.searchParams.set('code_challenge', challenge);
   url.searchParams.set('code_challenge_method', 'S256');
@@ -45,9 +61,9 @@ export const beginSignIn = async (): Promise<void> => {
   window.location.assign(url.toString());
 };
 
-// Decode an unverified JWT for display purposes. We don't trust these claims
-// for authorization — they're just shown in the Header user chip. Real
-// verification happens inside oauth4webapi against the IdP's JWKS.
+// Decode an unverified JWT for display. We don't trust these claims for
+// authorization — they're shown in the user chip. Real verification happens
+// inside oauth4webapi against the IdP's JWKS.
 const decodeIdTokenClaims = (idToken: string): UserClaims | null => {
   const parts = idToken.split('.');
   if (parts.length !== 3) {
@@ -73,17 +89,14 @@ const decodeIdTokenClaims = (idToken: string): UserClaims | null => {
 };
 
 export interface CallbackResult {
+  providerId: string;
   tokens: TokenSet;
   user: UserClaims | null;
 }
 
-// Dedupe completion attempts keyed on (code, state). React StrictMode double-mounts
-// effects in dev, which would otherwise cause the second mount to see an empty PKCE
-// state (consumed by the first) and throw. Both mounts share the same Promise.
+// Dedupe completion attempts (React StrictMode double-mounts effects in dev).
 const inFlight = new Map<string, Promise<CallbackResult>>();
 
-// Step 2: handle the /auth/callback redirect. Validates state (CSRF),
-// exchanges code+verifier for tokens, decodes the id_token for display.
 export const completeSignIn = (callbackUrl: URL): Promise<CallbackResult> => {
   const code = callbackUrl.searchParams.get('code') ?? '';
   const state = callbackUrl.searchParams.get('state') ?? '';
@@ -101,15 +114,19 @@ const doCompleteSignIn = async (callbackUrl: URL): Promise<CallbackResult> => {
   if (!pending) {
     throw new Error('Missing PKCE state — sign-in flow was not initiated from this tab.');
   }
+  const provider = getProvider(pending.providerId);
+  if (!provider) {
+    throw new Error(`Unknown provider stored in PKCE state: ${pending.providerId}`);
+  }
+  const oidc = requireOidc(provider);
+  const server = await discover(oidc.issuer);
 
-  const server = await discover();
+  const client: oauth.Client = { client_id: oidc.clientId };
   const params = oauth.validateAuthResponse(server, client, callbackUrl, pending.state);
-
   const response = await oauth.authorizationCodeGrantRequest(server, client, clientAuth, params, oidcRedirectUri(), pending.verifier);
   const result = await oauth.processAuthorizationCodeResponse(server, client, response);
 
   const expiresAt = Date.now() + (typeof result.expires_in === 'number' ? result.expires_in * 1000 : 3600 * 1000);
-
   const tokens: TokenSet = {
     accessToken: result.access_token,
     expiresAt,
@@ -117,7 +134,6 @@ const doCompleteSignIn = async (callbackUrl: URL): Promise<CallbackResult> => {
     ...(typeof result.id_token === 'string' ? { idToken: result.id_token } : {}),
     ...(typeof result.refresh_token === 'string' ? { refreshToken: result.refresh_token } : {}),
   };
-
   const user = tokens.idToken ? decodeIdTokenClaims(tokens.idToken) : null;
-  return { tokens, user };
+  return { providerId: pending.providerId, tokens, user };
 };

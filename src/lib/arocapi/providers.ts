@@ -6,12 +6,20 @@ const providers = [
     label: 'PARADISEC',
     baseUrl: 'https://admin-catalog.paradisec.org.au/api/v1/oni',
     itemUrlTemplate: 'https://catalog.paradisec.org.au/items/{itemId}',
+    oidc: {
+      issuer: 'https://admin-catalog.paradisec.org.au',
+      clientId: '9cYKX8nNk4bO_hyp2aanNYO-b5mC1pm2yVltT1zfdDc',
+      // `public` is required by PARADISEC's Doorkeeper API for read access; rest
+      // are standard OIDC claims for the user chip.
+      scopes: 'openid profile email public',
+    },
   },
   {
     id: 'ldaca',
     label: 'LDaCA',
     baseUrl: 'https://dev.ldaca.edu.au/api',
     itemUrlTemplate: 'https://dev.ldaca.edu.au/items/{itemId}',
+    // LDaCA is currently public; when it gains auth, populate `oidc` here.
   },
 ] as const satisfies readonly Provider[];
 

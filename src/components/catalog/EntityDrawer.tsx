@@ -1,5 +1,5 @@
 import { Dialog } from '@base-ui/react/dialog';
-import { ExternalLinkIcon, Loader2Icon, XIcon } from 'lucide-react';
+import { ExternalLinkIcon, Loader2Icon, LockIcon, XIcon } from 'lucide-react';
 import { type File as CatalogFile, formatArocapiError, getProvider, itemCatalogUrl, type ProviderId, useEntity, useFiles } from '@/lib/arocapi';
 import { formatBytes } from '@/lib/utils';
 
@@ -94,24 +94,49 @@ export const EntityDrawer = ({ providerId, entityId, open, onClose, onLoadFile }
                     <p className="text-muted-foreground text-xs">No media files attached to this item.</p>
                   ) : (
                     <ul className="space-y-2">
-                      {files.map((file) => (
-                        <li key={file.id} className="flex items-center justify-between gap-3 rounded border border-border p-2">
-                          <div className="min-w-0">
-                            <p className="truncate font-medium text-sm">{file.filename}</p>
-                            <p className="truncate text-muted-foreground text-xs">
-                              {file.mediaType}
-                              {typeof file.size === 'number' && ` · ${formatBytes(file.size)}`}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => onLoadFile(file)}
-                            className="inline-flex h-7 shrink-0 items-center rounded border border-input bg-background px-3 font-medium text-xs hover:bg-muted"
-                          >
-                            Load
-                          </button>
-                        </li>
-                      ))}
+                      {files.map((file) => {
+                        const locked = file.access?.content === false;
+                        const enrollUrl = file.access?.contentAuthorizationUrl;
+                        return (
+                          <li key={file.id} className="flex items-center justify-between gap-3 rounded border border-border p-2">
+                            <div className="min-w-0">
+                              <p className="flex items-center gap-1.5 truncate font-medium text-sm">
+                                {locked && <LockIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                                <span className="truncate">{file.filename}</span>
+                              </p>
+                              <p className="truncate text-muted-foreground text-xs">
+                                {file.mediaType}
+                                {typeof file.size === 'number' && ` · ${formatBytes(file.size)}`}
+                              </p>
+                            </div>
+                            {locked ? (
+                              enrollUrl ? (
+                                <a
+                                  href={enrollUrl}
+                                  target="_blank"
+                                  rel="noreferrer noopener"
+                                  className="inline-flex h-7 shrink-0 items-center gap-1 rounded border border-input bg-background px-3 font-medium text-xs hover:bg-muted"
+                                >
+                                  Request access
+                                  <ExternalLinkIcon className="h-3 w-3" />
+                                </a>
+                              ) : (
+                                <span className="inline-flex h-7 shrink-0 items-center rounded border border-input bg-muted/50 px-3 font-medium text-muted-foreground text-xs">
+                                  Restricted
+                                </span>
+                              )
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => onLoadFile(file)}
+                                className="inline-flex h-7 shrink-0 items-center rounded border border-input bg-background px-3 font-medium text-xs hover:bg-muted"
+                              >
+                                Load
+                              </button>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </section>

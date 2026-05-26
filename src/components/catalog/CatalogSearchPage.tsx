@@ -1,5 +1,6 @@
 import { ArrowLeftIcon } from 'lucide-react';
 import { useMemo } from 'react';
+import { ProviderAuthChip } from '@/components/auth/ProviderAuthChip';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -99,18 +100,21 @@ export const CatalogSearchPage = ({ onLoadCatalog }: CatalogSearchPageProps) => 
           </Button>
           <h1 className="font-semibold text-lg">Catalog search</h1>
         </div>
-        <Select value={provider.id} onValueChange={handleProviderChange} items={providers.map((p) => ({ value: p.id, label: p.label }))}>
-          <SelectTrigger size="sm" aria-label="Catalog provider">
-            <SelectValue placeholder="Select catalog" />
-          </SelectTrigger>
-          <SelectContent>
-            {providers.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select value={provider.id} onValueChange={handleProviderChange} items={providers.map((p) => ({ value: p.id, label: p.label }))}>
+            <SelectTrigger size="sm" aria-label="Catalog provider">
+              <SelectValue placeholder="Select catalog" />
+            </SelectTrigger>
+            <SelectContent>
+              {providers.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <ProviderAuthChip providerId={provider.id} />
+        </div>
       </div>
 
       <SearchInput initialValue={query} onQueryChange={setCatalogQuery} />

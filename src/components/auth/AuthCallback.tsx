@@ -17,11 +17,11 @@ export const AuthCallback = ({ onDone }: AuthCallbackProps) => {
     (async () => {
       try {
         const callbackUrl = new URL(window.location.href);
-        const { tokens, user } = await completeSignIn(callbackUrl);
+        const { providerId, tokens, user } = await completeSignIn(callbackUrl);
         if (cancelled) {
           return;
         }
-        setSession(tokens, user);
+        setSession(providerId, tokens, user);
         // Strip the ?code= and ?state= from the address bar before handing back
         // to the app — leaving them in is ugly and the browser would re-trigger
         // the callback on a refresh.

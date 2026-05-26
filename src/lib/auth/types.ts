@@ -14,11 +14,7 @@ export interface UserClaims {
   familyName?: string;
 }
 
-type AuthStatus = 'unauthenticated' | 'signing-in' | 'authenticated' | 'error';
-
-export interface AuthState {
-  status: AuthStatus;
-  tokens: TokenSet | null;
+export interface ProviderSession {
+  tokens: TokenSet;
   user: UserClaims | null;
-  error?: string;
 }

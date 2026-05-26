@@ -12,11 +12,25 @@ export class ArocapiError extends Error {
   }
 }
 
+interface OidcConfig {
+  readonly issuer: string;
+  readonly clientId: string;
+  readonly scopes: string;
+}
+
 export interface Provider {
   readonly id: string;
   readonly label: string;
   readonly baseUrl: string;
   readonly itemUrlTemplate: string;
+  readonly oidc?: OidcConfig;
+}
+
+interface EntityAccess {
+  metadata: boolean;
+  content: boolean;
+  metadataAuthorizationUrl?: string;
+  contentAuthorizationUrl?: string;
 }
 
 type SortField = 'id' | 'name' | 'createdAt' | 'updatedAt' | 'relevance';
@@ -25,6 +39,7 @@ type SortOrder = 'asc' | 'desc';
 export interface SearchRequest {
   query: string;
   filters?: Record<string, string[]>;
+  entityType?: string;
   limit?: number;
   offset?: number;
   sort?: SortField;
@@ -34,13 +49,6 @@ export interface SearchRequest {
 interface EntityReference {
   id: string;
   name: string;
-}
-
-interface EntityAccess {
-  metadata: boolean;
-  content: boolean;
-  metadataAuthorizationUrl?: string;
-  contentAuthorizationUrl?: string;
 }
 
 export interface Entity {
