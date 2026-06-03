@@ -4,7 +4,7 @@ import { ProviderAuthChip } from '@/components/auth/ProviderAuthChip';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTranscriptImport } from '@/hooks/useTranscriptImport';
-import { type CatalogSource, listProviders, type ProviderId, type SearchRequest, useSearchEntities } from '@/lib/arocapi';
+import { type CatalogSource, listProviders, type SearchRequest, useSearchEntities } from '@/lib/arocapi';
 import type { TranscriptImportOptions } from '@/lib/import/types';
 import { setLastProviderId } from '@/lib/preferences';
 import { useAppStore } from '@/lib/store';
@@ -57,7 +57,9 @@ export const CatalogSearchPage = ({ onLoadCatalog }: CatalogSearchPageProps) => 
     [query, filters, page],
   );
 
-  const search = useSearchEntities(provider.id, request, { enabled: query.length > 0 || Object.keys(filters).length > 0 });
+  const search = useSearchEntities(provider?.id ?? '', request, {
+    enabled: Boolean(provider) && (query.length > 0 || Object.keys(filters).length > 0),
+  });
   const entities = search.data?.entities ?? [];
   const total = search.data?.total ?? 0;
   const searchTime = search.data?.searchTime ?? 0;
@@ -67,9 +69,23 @@ export const CatalogSearchPage = ({ onLoadCatalog }: CatalogSearchPageProps) => 
     if (next === null || next === providerId) {
       return;
     }
-    setCatalogProvider(next as ProviderId);
-    setLastProviderId(next as ProviderId);
+    setCatalogProvider(next);
+    setLastProviderId(next);
   };
+
+  // Defensive: the catalog entry points are hidden when no providers are
+  // configured, so this is normally unreachable — but never render with no provider.
+  if (!provider) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={exitCatalogSearch}>
+          <ArrowLeftIcon className="h-4 w-4" />
+          Back
+        </Button>
+        <div className="rounded-lg border border-border p-8 text-center text-muted-foreground text-sm">No catalogs are configured for this deployment.</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import type { CatalogSource } from './arocapi';
-import { DEFAULT_PROVIDER_ID, type ProviderId } from './arocapi';
+import type { CatalogSource, ProviderId } from './arocapi';
 import { DEFAULT_VAD_CONFIG, MAX_SPEAKERS } from './constants';
 import { deleteSession } from './persistence/storage';
 import type { StoredSession } from './persistence/types';
@@ -21,7 +20,9 @@ interface CatalogSearchSlice {
 }
 
 const initialCatalogSearch: CatalogSearchSlice = {
-  providerId: DEFAULT_PROVIDER_ID,
+  // Set to the remembered/first provider by an effect in App once the runtime
+  // config has loaded; CatalogSearchPage falls back to providers[0] meanwhile.
+  providerId: '',
   query: '',
   filters: {},
   page: 1,

@@ -1,0 +1,19 @@
+[
+  {
+    "id": "paradisec",
+    "label": "PARADISEC",
+    "baseUrl": "https://admin-catalog.paradisec.org.au/api/v1/oni",
+    "itemUrlTemplate": "https://catalog.paradisec.org.au/items/{itemId}",
+    "oidc": {
+      "issuer": "https://admin-catalog.paradisec.org.au",
+      "clientId": "9cYKX8nNk4bO_hyp2aanNYO-b5mC1pm2yVltT1zfdDc",
+      "scopes": "openid profile email public"
+    }
+  },
+  {
+    "id": "ldaca",
+    "label": "LDaCA",
+    "baseUrl": "https://dev.ldaca.edu.au/api",
+    "itemUrlTemplate": "https://dev.ldaca.edu.au/items/{itemId}"
+  }
+]

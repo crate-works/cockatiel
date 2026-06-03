@@ -6,13 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>cockatiel</title>
     <script>
-      // Enable cross-origin isolation on GitHub Pages (which cannot send COOP/COEP
-      // headers). The dev server sets these headers directly via vite.config.ts;
-      // this shim is the production fallback. credentialless mode lets us still
-      // fetch public catalogue URLs that don't send Cross-Origin-Resource-Policy.
+      // Cross-origin isolation is required for SharedArrayBuffer / the VAD worker.
+      // The dev server (vite.config.ts) and the self-host nginx image send real
+      // COOP/COEP headers, so the page is already isolated and the shim is skipped.
+      // GitHub Pages cannot send those headers, so there we register the
+      // coi-serviceworker fallback (it reloads the page once the worker is active).
+      // credentialless mode lets us still fetch public catalogue URLs that don't
+      // send Cross-Origin-Resource-Policy.
       window.coi = { coepCredentialless: () => true };
+      if (!window.crossOriginIsolated) {
+        const coiScript = document.createElement('script');
+        coiScript.src = new URL('coi-serviceworker.js', document.baseURI).href;
+        document.head.appendChild(coiScript);
+      }
     </script>
-    <script src="./coi-serviceworker.js"></script>
   </head>
   <body>
     <div id="root"></div>

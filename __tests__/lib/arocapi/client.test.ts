@@ -1,12 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatArocapiError, getEntity, listEntities, resolveFileUrl, searchEntities } from '@/lib/arocapi/client';
-import { getProvider } from '@/lib/arocapi/providers';
+import type { Provider } from '@/lib/arocapi/types';
 import { ArocapiError } from '@/lib/arocapi/types';
 
-const paradisec = getProvider('paradisec');
-if (!paradisec) {
-  throw new Error('PARADISEC provider missing');
-}
+// Providers are loaded from runtime config in the app; tests construct one directly.
+const paradisec: Provider = {
+  id: 'paradisec',
+  label: 'PARADISEC',
+  baseUrl: 'https://admin-catalog.paradisec.org.au/api/v1/oni',
+  itemUrlTemplate: 'https://catalog.paradisec.org.au/items/{itemId}',
+};
 
 const okJson = (body: unknown, status = 200): Response => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 

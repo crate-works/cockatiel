@@ -9,7 +9,11 @@ const crossOriginIsolationHeaders = {
 };
 
 export default defineConfig({
-  base: process.env.GITHUB_ACTIONS ? '/cockatiel/' : '/',
+  // `/` for dev and the self-host docker image; `/app/` for the official
+  // GitHub Pages build (set in the deploy workflow). See Dockerfile / deploy.yml.
+  // Catalog providers are loaded at runtime from public/config.json (served at
+  // `${BASE_URL}config.json`); the docker image overwrites it with an empty list.
+  base: process.env.VITE_BASE_PATH || '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

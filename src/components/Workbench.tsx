@@ -6,7 +6,7 @@ import { DropBar } from '@/components/DropBar';
 import { DropZone } from '@/components/DropZone';
 import { UrlDisclosure } from '@/components/UrlDisclosure';
 import { Button } from '@/components/ui/button';
-import type { CatalogSource } from '@/lib/arocapi';
+import { type CatalogSource, listProviders } from '@/lib/arocapi';
 import { getStorageEstimate, isPersisted, type StorageUsage } from '@/lib/persistence/grant';
 import { listSessions, loadSession } from '@/lib/persistence/storage';
 import type { SessionSummary } from '@/lib/persistence/types';
@@ -89,6 +89,8 @@ export const Workbench = ({ onFileSelected, onLoadUrl, onLoadCatalog }: Workbenc
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const enterCatalogSearch = useAppStore((s) => s.enterCatalogSearch);
+  // No catalog providers configured ⇒ hide the catalog entry points.
+  const hasCatalogs = listProviders().length > 0;
 
   const reload = useCallback(async () => {
     const list = await listSessions();
@@ -170,12 +172,14 @@ export const Workbench = ({ onFileSelected, onLoadUrl, onLoadCatalog }: Workbenc
           </p>
         </div>
         <DropZone onFileSelected={onFileSelected} />
-        <div className="mt-3 flex justify-center">
-          <Button variant="outline" size="sm" onClick={enterCatalogSearch}>
-            <LibraryIcon className="h-4 w-4" />
-            Browse catalog
-          </Button>
-        </div>
+        {hasCatalogs && (
+          <div className="mt-3 flex justify-center">
+            <Button variant="outline" size="sm" onClick={enterCatalogSearch}>
+              <LibraryIcon className="h-4 w-4" />
+              Browse catalog
+            </Button>
+          </div>
+        )}
         <div className="mt-2 w-full max-w-md">
           <UrlDisclosure onLoad={onLoadUrl} />
         </div>
@@ -189,12 +193,14 @@ export const Workbench = ({ onFileSelected, onLoadUrl, onLoadCatalog }: Workbenc
   return (
     <div className="mx-auto max-w-4xl space-y-5 py-8">
       <DropBar onFileSelected={onFileSelected} />
-      <div className="flex justify-center">
-        <Button variant="outline" size="sm" onClick={enterCatalogSearch}>
-          <LibraryIcon className="h-4 w-4" />
-          Browse catalog
-        </Button>
-      </div>
+      {hasCatalogs && (
+        <div className="flex justify-center">
+          <Button variant="outline" size="sm" onClick={enterCatalogSearch}>
+            <LibraryIcon className="h-4 w-4" />
+            Browse catalog
+          </Button>
+        </div>
+      )}
       <UrlDisclosure onLoad={onLoadUrl} />
 
       <div className="overflow-hidden rounded-xl border border-border bg-card">

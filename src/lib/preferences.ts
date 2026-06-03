@@ -1,4 +1,4 @@
-import { DEFAULT_PROVIDER_ID, isProviderId, type ProviderId } from './arocapi';
+import { defaultProviderId, isProviderId, type ProviderId } from './arocapi';
 
 const STORAGE_KEY = 'cockatiel:skipDownloadConfirm';
 const PROVIDER_KEY = 'cockatiel:lastProviderId';
@@ -28,10 +28,12 @@ export const setSkipDownloadConfirm = (value: boolean): void => {
   }
 };
 
-export const getLastProviderId = (): ProviderId => {
+// Returns the remembered provider if it's still a known one, else the first
+// configured provider, else undefined when no catalog is configured.
+export const getLastProviderId = (): ProviderId | undefined => {
   const storage = safeStorage();
   const raw = storage?.getItem(PROVIDER_KEY);
-  return raw && isProviderId(raw) ? raw : DEFAULT_PROVIDER_ID;
+  return raw && isProviderId(raw) ? raw : defaultProviderId();
 };
 
 export const setLastProviderId = (id: ProviderId): void => {

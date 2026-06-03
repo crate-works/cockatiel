@@ -25,6 +25,7 @@ import { ZoomControl } from '@/components/ZoomControl';
 import { useAutoSegment } from '@/hooks/useAutoSegment';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useRemoteAudioLoad } from '@/hooks/useRemoteAudioLoad';
+import { listProviders } from '@/lib/arocapi';
 import { AUTH_CALLBACK_PATH } from '@/lib/auth';
 import { startAutoSave } from '@/lib/persistence/subscribe';
 import { getLastProviderId } from '@/lib/preferences';
@@ -63,10 +64,16 @@ const App = () => {
   // machine, then hand control back via onDone once tokens are stored.
   const [isAuthCallback, setIsAuthCallback] = useState(() => window.location.pathname === AUTH_CALLBACK_PATH);
 
+  // No catalog providers configured (no/invalid config.json) ⇒ hide catalog entry.
+  const hasCatalogs = listProviders().length > 0;
+
   useEffect(() => startAutoSave(), []);
 
   useEffect(() => {
-    useAppStore.getState().setCatalogProvider(getLastProviderId());
+    const providerId = getLastProviderId();
+    if (providerId) {
+      useAppStore.getState().setCatalogProvider(providerId);
+    }
   }, []);
 
   const triggeredQueryParamRef = useRef(false);
@@ -115,12 +122,14 @@ const App = () => {
                 <RestoreBanner onResume={handleFileSelected} />
                 <div className="flex flex-col items-center">
                   <DropZone onFileSelected={handleFileSelected} />
-                  <div className="mt-3 flex justify-center">
-                    <Button variant="outline" size="sm" onClick={enterCatalogSearch}>
-                      <LibraryIcon className="h-4 w-4" />
-                      Browse catalog
-                    </Button>
-                  </div>
+                  {hasCatalogs && (
+                    <div className="mt-3 flex justify-center">
+                      <Button variant="outline" size="sm" onClick={enterCatalogSearch}>
+                        <LibraryIcon className="h-4 w-4" />
+                        Browse catalog
+                      </Button>
+                    </div>
+                  )}
                   <div className="mt-2 w-full max-w-md">
                     <UrlDisclosure onLoad={loadFromUrl} />
                   </div>
