@@ -5,7 +5,11 @@ import { getErrorMessage, isAbortError } from '@/lib/utils';
 import { prewarm } from '@/lib/vad';
 
 const AUDIO_EXTENSIONS = ['.wav', '.mp3', '.flac', '.ogg', '.m4a', '.aac', '.wma'];
-const ACCEPT_AUDIO = { 'audio/*': AUDIO_EXTENSIONS };
+const VIDEO_EXTENSIONS = ['.mp4', '.m4v', '.mov', '.webm', '.ogv', '.mkv'];
+const ACCEPT_MEDIA = { 'audio/*': AUDIO_EXTENSIONS, 'video/*': VIDEO_EXTENSIONS };
+
+/** Human-friendly summary of accepted formats, shown in the drop targets. */
+export const SUPPORTED_FORMATS_LABEL = 'WAV, MP3, FLAC, OGG, M4A · MP4, MOV, WEBM, MKV';
 
 interface UseAudioFilePickerArgs {
   onFileSelected: (file: File, handle?: FileSystemFileHandle) => void;
@@ -26,7 +30,7 @@ export const useAudioFilePicker = ({ onFileSelected }: UseAudioFilePickerArgs) =
   );
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
-    accept: ACCEPT_AUDIO,
+    accept: ACCEPT_MEDIA,
     maxFiles: 1,
     multiple: false,
     noClick: true,
@@ -44,7 +48,7 @@ export const useAudioFilePicker = ({ onFileSelected }: UseAudioFilePickerArgs) =
       const [handle] = await picker({
         excludeAcceptAllOption: false,
         multiple: false,
-        types: [{ accept: ACCEPT_AUDIO, description: 'Audio files' }],
+        types: [{ accept: ACCEPT_MEDIA, description: 'Audio and video files' }],
       });
       if (!handle) {
         return;

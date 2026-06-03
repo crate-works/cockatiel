@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { useAudioFilePicker } from '@/hooks/useAudioFilePicker';
+import { SUPPORTED_FORMATS_LABEL, useAudioFilePicker } from '@/hooks/useAudioFilePicker';
 
 interface DropZoneProps {
   onFileSelected: (file: File, handle?: FileSystemFileHandle) => void;
@@ -16,9 +16,9 @@ export const DropZone = ({ onFileSelected }: DropZoneProps) => {
       }`}
     >
       <input {...getInputProps()} />
-      <div className="mb-4 text-4xl text-muted-foreground">🎵</div>
-      <p className="mb-1 font-medium">Drop an audio file here</p>
-      <p className="text-sm text-muted-foreground">WAV, MP3, FLAC, OGG, M4A</p>
+      <div className="mb-4 text-4xl text-muted-foreground">🎬</div>
+      <p className="mb-1 font-medium">Drop an audio or video file here</p>
+      <p className="text-sm text-muted-foreground">{SUPPORTED_FORMATS_LABEL}</p>
       <Button variant="outline" className="mt-4" onClick={handleChoose}>
         Choose file
       </Button>

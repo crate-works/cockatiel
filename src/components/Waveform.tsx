@@ -22,15 +22,20 @@ interface WaveformProps {
 
 export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [player, setPlayer] = useState<MediaPlayer | null>(null);
   const [isReady, setIsReady] = useState(false);
+
+  // A <video> element backs every load (it plays audio-only files just as well),
+  // but we only reveal it when the file is actually video.
+  const isVideo = audioFile?.type.startsWith('video/') ?? false;
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) {
       return;
     }
-    const p = createWavesurferMediaPlayer(container, getSpeakerColour);
+    const p = createWavesurferMediaPlayer(container, getSpeakerColour, videoRef.current);
     setPlayer(p);
     return () => {
       p.dispose();
@@ -84,6 +89,8 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
   return (
     <MediaPlayerContext.Provider value={player}>
       <div className="space-y-0.5">
+        {/* biome-ignore lint/a11y/useMediaCaption: transcription source, not published media */}
+        <video ref={videoRef} playsInline className={isVideo ? 'mx-auto mb-2 max-h-[40vh] max-w-full rounded-md bg-black' : 'hidden'} />
         <div className="flex items-stretch">
           <div className="flex w-25 shrink-0 items-center rounded-l-md border border-r-0 border-border bg-waveform-bg px-2.5 font-mono text-[0.65rem] uppercase tracking-widest text-muted-foreground/50">
             Waveform
@@ -95,7 +102,7 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
               {!isReady && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 text-muted-foreground">
                   <Loader2Icon className="size-5 animate-spin" />
-                  <span className="font-mono text-xs uppercase tracking-widest">Loading audio…</span>
+                  <span className="font-mono text-xs uppercase tracking-widest">Loading media…</span>
                 </div>
               )}
             </div>

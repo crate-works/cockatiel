@@ -1,6 +1,6 @@
 import { PlusIcon, UploadIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAudioFilePicker } from '@/hooks/useAudioFilePicker';
+import { SUPPORTED_FORMATS_LABEL, useAudioFilePicker } from '@/hooks/useAudioFilePicker';
 import { cn } from '@/lib/utils';
 
 interface DropBarProps {
@@ -23,8 +23,10 @@ export const DropBar = ({ onFileSelected }: DropBarProps) => {
         <UploadIcon className="h-[18px] w-[18px]" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">{isDragActive ? 'Drop an audio file to open in editor' : 'Drop an audio file to start transcribing'}</p>
-        <p className="text-xs text-muted-foreground">WAV, MP3, FLAC, OGG, M4A · one file at a time</p>
+        <p className="text-sm font-medium">
+          {isDragActive ? 'Drop an audio or video file to open in editor' : 'Drop an audio or video file to start transcribing'}
+        </p>
+        <p className="text-xs text-muted-foreground">{SUPPORTED_FORMATS_LABEL} · one file at a time</p>
       </div>
       <Button size="sm" onClick={handleChoose}>
         <PlusIcon className="h-3.5 w-3.5" />

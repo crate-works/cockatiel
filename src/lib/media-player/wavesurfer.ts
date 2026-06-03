@@ -7,7 +7,7 @@ import { createWavesurferRegionSync } from './region-sync/wavesurfer';
 import type { DesiredRegions, MediaPlayer, MediaPlayerEvent, MediaPlayerState, Viewport } from './types';
 import { computeZoomWindow } from './zoom-math';
 
-export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (speaker: number) => string): MediaPlayer => {
+export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (speaker: number) => string, media?: HTMLMediaElement | null): MediaPlayer => {
   const regions = RegionsPlugin.create();
   const zoomPlugin = ZoomPlugin.create({ exponentialZooming: true, iterations: 30, scale: 0.5 });
   const minimap = MinimapPlugin.create({
@@ -22,6 +22,9 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
     cursorColor: 'oklch(0.45 0.18 25)',
     cursorWidth: 2,
     height: 160,
+    // Drive an external <video>/<audio> element when supplied so video frames
+    // render in our own surface while WaveSurfer still draws the audio track.
+    ...(media ? { media } : {}),
     normalize: true,
     plugins: [regions, zoomPlugin, minimap],
     progressColor: 'oklch(0.35 0.12 55)',
