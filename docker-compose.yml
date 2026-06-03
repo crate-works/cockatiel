@@ -1,0 +1,12 @@
+services:
+  cockatiel:
+    image: ghcr.io/crate-works/cockatiel:latest
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    # To connect Cockatiel to your own RO-Crate catalogue(s), copy
+    # config.example.json to config.json, edit it, and uncomment the mount
+    # below. Without it the image ships with no providers (local annotation
+    # still works; the catalogue browser is hidden).
+    # volumes:
+    #   - ./config.json:/usr/share/nginx/html/config.json:ro

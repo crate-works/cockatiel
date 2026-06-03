@@ -1,0 +1,19 @@
+# Installed/built in the image, not copied from the host
+node_modules
+**/node_modules
+dist
+dist-deploy
+dist-ssr
+website/dist
+.astro
+**/.astro
+
+# Downloaded inside the image via `pnpm run download:wasm`
+public/wasm
+
+# Not needed for the build
+.git
+.github
+coverage
+website/public/screenshot-*.png
+*.log

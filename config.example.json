@@ -1,0 +1,13 @@
+[
+  {
+    "id": "my-catalog",
+    "label": "My Catalogue",
+    "baseUrl": "https://catalog.example.org/api",
+    "itemUrlTemplate": "https://catalog.example.org/items/{itemId}",
+    "oidc": {
+      "issuer": "https://catalog.example.org",
+      "clientId": "your-oidc-client-id",
+      "scopes": "openid profile email"
+    }
+  }
+]
