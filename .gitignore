@@ -10,8 +10,12 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist-deploy
 coverage
 *.local
+
+# Astro generated types/cache (website workspace)
+.astro/
 
 # WASM binaries (downloaded via scripts/download-wasm-vad.sh)
 public/wasm/

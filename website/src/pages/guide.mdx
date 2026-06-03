@@ -1,0 +1,103 @@
+---
+layout: ../layouts/DocsLayout.astro
+title: Guide
+description: How to use Cockatiel — loading media, automatic segmentation, editing on the waveform, speakers, looping, keyboard shortcuts, and multi-format export.
+---
+
+# Using Cockatiel
+
+Cockatiel turns a recording into a set of time-aligned, speaker-labelled segments you can
+export to the annotation tool of your choice. Everything runs locally in your browser — your
+media is never uploaded.
+
+[Open Cockatiel](/app) and follow along.
+
+## Loading media
+
+There are three ways to get a recording into Cockatiel:
+
+- **Drop a file** — drag an audio or video file onto the drop zone, or click to browse. Video
+  files are supported; Cockatiel uses the audio track for segmentation and shows the video for
+  reference.
+- **Paste a URL** — use the URL input below the drop zone and click **Load URL** to pull audio
+  from a remote `https` location.
+- **Deep link** — open Cockatiel with an `?audio=` query parameter, for example
+  `https://cockatiel.crate-works.org/app/?audio=https://catalog.example.org/path/to/audio.wav`.
+  Cockatiel fetches the file, shows its size to confirm, then segments it. The link stays in
+  the address bar so it can be shared.
+
+Sessions sourced from a URL are stored against that URL — revisiting the same link restores
+your saved transcript instantly and re-downloads the audio in the background.
+
+> **Loading from a catalogue?** The remote server must allow cross-origin reads from
+> Cockatiel's origin (`Access-Control-Allow-Origin`, plus `GET` and a `Range` header — Cockatiel
+> issues a small range request to discover the file size). Only `https:` URLs are accepted.
+
+## Automatic segmentation
+
+When you load a recording, Cockatiel runs **voice-activity detection** to split it into
+utterances:
+
+- **Silero VAD** (WebAssembly) is the default — accurate neural speech detection that runs
+  entirely in the browser.
+- An **energy-based fallback** is used where the WASM model can't run.
+
+You can re-run segmentation with different sensitivity if the defaults over- or under-split.
+
+## Editing on the waveform
+
+Every segment is a region on the waveform. Work directly on it:
+
+- **Drag** a region to move it, or drag its edges to **resize**.
+- **Split** a region at the playhead.
+- **Merge** adjacent regions into one.
+- **Delete** a region you don't need.
+
+The audio playback and your edits stay in sync, so you can fine-tune boundaries by ear.
+
+## Speakers
+
+Assign each segment to a **speaker**. Speakers have configurable names and colours, so a
+multi-speaker recording stays readable at a glance and the speaker labels carry through to your
+export.
+
+## Looping playback
+
+Click a region to **loop** it while you transcribe. The segment repeats so you can keep your
+hands on the keyboard and type what you hear without constantly seeking.
+
+## Keyboard shortcuts
+
+Cockatiel is built for a keyboard-driven workflow:
+
+| Key | Action |
+| --- | --- |
+| `S` | Split the current segment at the playhead |
+| `M` | Merge with the adjacent segment |
+| `Delete` | Delete the current segment |
+| `[` / `]` | Navigate between segments |
+| `←` / `→` | Skip backward / forward |
+| `Space` | Play / pause |
+| `?` | Show the full list of shortcuts |
+
+Press `?` at any time to see the complete, up-to-date list.
+
+## Exporting
+
+When your transcript is ready, export it to the format your analysis tools expect:
+
+- **EAF** — ELAN annotation format
+- **SRT** — subtitles
+- **TextGrid** — Praat
+- **CSV** — spreadsheets / scripting
+- **Plain text**
+
+Exports include your segment boundaries and speaker labels, ready to open in the destination
+tool.
+
+## Catalogue integration
+
+If your deployment is configured with one or more catalogue providers, you can browse and load
+items directly from an RO-Crate catalogue (such as PARADISEC or LDaCA), and import existing
+ELAN transcripts attached to an item. See [Self-host](/self-host) for how to point Cockatiel at
+your own catalogue.

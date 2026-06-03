@@ -1,0 +1,62 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+@plugin "@tailwindcss/typography";
+
+/* Mirrors the app's "Warm Studio" theme tokens (see ../../src/index.css) so the
+   marketing site and the app feel like one product. The violet brand colour is
+   taken from the favicon (#863bff) and used for CTAs / accents on the site. */
+
+@theme inline {
+  --font-sans: "Inter Variable", "Inter", sans-serif;
+  --font-mono: "JetBrains Mono Variable", "Menlo", monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-muted: var(--brand-muted);
+
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+:root {
+  /* Warm neutrals, copied from the app */
+  --background: oklch(0.975 0.005 80);
+  --foreground: oklch(0.195 0.015 55);
+  --card: oklch(0.985 0.004 80);
+  --card-foreground: oklch(0.195 0.015 55);
+  --muted: oklch(0.94 0.008 75);
+  --muted-foreground: oklch(0.52 0.015 60);
+  --border: oklch(0.89 0.012 75);
+  --accent: oklch(0.72 0.155 60);
+  --accent-foreground: oklch(0.99 0.003 80);
+  --radius: 0.5rem;
+
+  /* Violet brand (favicon #863bff) */
+  --brand: oklch(0.55 0.255 293);
+  --brand-foreground: oklch(0.99 0.003 80);
+  --brand-muted: oklch(0.95 0.03 293);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    scroll-behavior: smooth;
+  }
+  body {
+    -webkit-font-smoothing: antialiased;
+    color: var(--color-foreground);
+    background-color: var(--color-background);
+  }
+}

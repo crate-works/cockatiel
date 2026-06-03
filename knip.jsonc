@@ -5,7 +5,10 @@
     // shadcn/ui component library
     "src/components/ui/**",
     // Ambient type augmentations (global `declare` blocks aren't reachable via imports)
-    "**/*.d.ts"
+    "**/*.d.ts",
+    // Referenced only via Astro MDX `layout:` frontmatter (a string path), which
+    // knip doesn't trace, so it's reported as unused.
+    "website/src/layouts/DocsLayout.astro"
   ],
   "ignoreDependencies": [
     // Copied to public/ via the `copy:coi-sw` script; knip can't see it through `cp`.

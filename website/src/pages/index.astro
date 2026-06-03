@@ -1,0 +1,177 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const features = [
+  {
+    title: 'Automatic segmentation',
+    body: 'Voice-activity detection via Silero VAD (WebAssembly), with an energy-based fallback. Long recordings are split into utterances in seconds.',
+  },
+  {
+    title: 'Waveform editor',
+    body: 'Drag, resize, split, merge, and delete segments directly on the waveform. The audio and your edits stay perfectly in sync.',
+  },
+  {
+    title: 'Speaker assignment',
+    body: 'Assign segments to speakers with configurable names and colours, so multi-speaker recordings stay legible.',
+  },
+  {
+    title: 'Looping playback',
+    body: 'Click a region to loop it while you transcribe. Keep your hands on the keyboard and your eyes on the text.',
+  },
+  {
+    title: 'Keyboard-driven',
+    body: 'Split (S), delete, merge (M), navigate ([ / ]), skip (← / →) and more. Press ? at any time to see every shortcut.',
+  },
+  {
+    title: 'Audio & video',
+    body: 'Drop an audio or video file, paste an https URL, or deep-link with ?audio= — sessions are saved against the source so links restore instantly.',
+  },
+  {
+    title: 'Multi-format export',
+    body: 'Export to EAF (ELAN), SRT, TextGrid (Praat), CSV, and plain text — ready for the tools your workflow already uses.',
+  },
+  {
+    title: 'Catalog integration',
+    body: 'Browse and load items straight from an RO-Crate catalog (PARADISEC, LDaCA, or your own), and import existing ELAN transcripts.',
+  },
+];
+---
+
+<Layout>
+  <!-- Hero -->
+  <section class="relative overflow-hidden">
+    <div
+      class="pointer-events-none absolute inset-0 -z-10"
+      style="background: radial-gradient(60% 60% at 50% 0%, var(--brand-muted) 0%, transparent 70%);"
+    >
+    </div>
+    <div class="mx-auto max-w-5xl px-6 pt-20 pb-12 text-center sm:pt-28">
+      <p class="mb-4 text-sm font-medium tracking-wide text-brand uppercase">
+        Local-first · zero backend
+      </p>
+      <h1 class="mx-auto max-w-3xl text-balance text-4xl font-bold tracking-tight sm:text-6xl">
+        Annotate audio &amp; video, entirely in your browser
+      </h1>
+      <p class="mx-auto mt-6 max-w-2xl text-balance text-lg text-muted-foreground">
+        Cockatiel segments speech with WebAssembly VAD, lets you edit on the waveform, and
+        exports to ELAN, SRT, TextGrid, CSV, and text. Your media never leaves your device.
+      </p>
+      <div class="mt-9 flex flex-wrap items-center justify-center gap-3">
+        <a
+          href="/app"
+          class="rounded-lg bg-brand px-6 py-3 text-base font-semibold text-brand-foreground shadow-sm transition-opacity hover:opacity-90"
+        >
+          Open Cockatiel →
+        </a>
+        <a
+          href="/guide"
+          class="rounded-lg border border-border bg-card px-6 py-3 text-base font-medium transition-colors hover:bg-muted"
+        >
+          Read the guide
+        </a>
+      </div>
+      <p class="mt-4 text-sm text-muted-foreground">
+        No sign-up, no upload. Free and open source.
+      </p>
+    </div>
+
+    <!-- Primary screenshot -->
+    <div class="mx-auto max-w-5xl px-6 pb-8">
+      <div class="overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+        <img
+          src="/screenshot-waveform.png"
+          alt="The Cockatiel waveform editor showing segmented speech"
+          width="1158"
+          height="532"
+          class="w-full"
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- Privacy / local-first -->
+  <section class="mx-auto max-w-5xl px-6 py-12">
+    <div class="rounded-2xl border border-border bg-card p-8 sm:p-10">
+      <h2 class="text-2xl font-semibold tracking-tight">Privacy first, by design</h2>
+      <p class="mt-3 max-w-3xl text-muted-foreground">
+        All processing — decoding, segmentation, editing, and export — runs locally in your
+        browser. There is no backend that sees your recordings. When you load audio from a
+        catalogue URL it streams from the source server straight to your browser; Cockatiel
+        never proxies the bytes. That means sensitive fieldwork and unpublished material stay
+        on your machine.
+      </p>
+    </div>
+  </section>
+
+  <!-- Feature grid -->
+  <section class="mx-auto max-w-5xl px-6 py-12">
+    <h2 class="text-center text-3xl font-bold tracking-tight">Everything you need to transcribe</h2>
+    <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {
+        features.map((feature) => (
+          <div class="rounded-xl border border-border bg-card p-6">
+            <h3 class="font-semibold">{feature.title}</h3>
+            <p class="mt-2 text-sm text-muted-foreground">{feature.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <!-- Sessions showcase -->
+  <section class="mx-auto max-w-5xl px-6 py-12">
+    <div class="grid items-center gap-8 lg:grid-cols-2">
+      <div>
+        <h2 class="text-3xl font-bold tracking-tight">Pick up where you left off</h2>
+        <p class="mt-4 text-muted-foreground">
+          Every recording you open becomes a saved session, stored in your browser. Drop a file,
+          browse a catalogue, or load from a URL — then come back later and your transcript,
+          speakers, and progress are right where you left them.
+        </p>
+        <a
+          href="/app"
+          class="mt-6 inline-block rounded-lg bg-brand px-5 py-2.5 font-medium text-brand-foreground transition-opacity hover:opacity-90"
+        >
+          Try it now →
+        </a>
+      </div>
+      <div class="overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
+        <img
+          src="/screenshot-session.png"
+          alt="The Cockatiel session list showing saved recordings and their progress"
+          width="964"
+          height="712"
+          class="w-full"
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- Closing CTA -->
+  <section class="mx-auto max-w-5xl px-6 py-16">
+    <div
+      class="rounded-2xl border border-border p-10 text-center"
+      style="background: linear-gradient(135deg, var(--brand-muted), var(--card));"
+    >
+      <h2 class="text-3xl font-bold tracking-tight">Ready to start?</h2>
+      <p class="mx-auto mt-3 max-w-xl text-muted-foreground">
+        Open Cockatiel and drop a file — nothing to install, nothing to sign up for. Want to run
+        it on your own infrastructure? It ships as a single container.
+      </p>
+      <div class="mt-7 flex flex-wrap items-center justify-center gap-3">
+        <a
+          href="/app"
+          class="rounded-lg bg-brand px-6 py-3 font-semibold text-brand-foreground transition-opacity hover:opacity-90"
+        >
+          Open Cockatiel →
+        </a>
+        <a
+          href="/self-host"
+          class="rounded-lg border border-border bg-card px-6 py-3 font-medium transition-colors hover:bg-muted"
+        >
+          Self-host it
+        </a>
+      </div>
+    </div>
+  </section>
+</Layout>

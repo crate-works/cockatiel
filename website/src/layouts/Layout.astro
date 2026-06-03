@@ -1,0 +1,82 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = 'Cockatiel — local-first audio & video annotation',
+  description = 'Cockatiel is a zero-backend, local-first audio and video annotation tool with WebAssembly voice-activity segmentation and multi-format export. Everything runs in your browser.',
+} = Astro.props;
+
+const nav = [
+  { href: '/guide', label: 'Guide' },
+  { href: '/self-host', label: 'Self-host' },
+  { href: 'https://github.com/crate-works/cockatiel', label: 'GitHub' },
+];
+const currentPath = Astro.url.pathname.replace(/\/$/, '');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <title>{title}</title>
+  </head>
+  <body class="min-h-screen flex flex-col">
+    <header class="border-b border-border bg-card/70 backdrop-blur">
+      <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
+        <a href="/" class="flex items-center gap-2.5 font-semibold tracking-tight">
+          <img src="/favicon.svg" alt="" width="28" height="27" />
+          <span>Cockatiel</span>
+        </a>
+        <nav class="flex items-center gap-1 text-sm">
+          {
+            nav.map((item) => (
+              <a
+                href={item.href}
+                class:list={[
+                  'rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                  { 'text-foreground': currentPath === item.href },
+                ]}
+              >
+                {item.label}
+              </a>
+            ))
+          }
+          <a
+            href="/app"
+            class="ml-2 rounded-md bg-brand px-3.5 py-1.5 font-medium text-brand-foreground transition-opacity hover:opacity-90"
+          >
+            Open Cockatiel
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="flex-1">
+      <slot />
+    </main>
+
+    <footer class="border-t border-border">
+      <div
+        class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-8 text-sm text-muted-foreground sm:flex-row"
+      >
+        <p>Cockatiel — local-first audio &amp; video annotation. MIT licensed.</p>
+        <div class="flex items-center gap-4">
+          <a href="https://github.com/crate-works/cockatiel" class="hover:text-foreground">GitHub</a>
+          <a href="/guide" class="hover:text-foreground">Guide</a>
+          <a href="/self-host" class="hover:text-foreground">Self-host</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

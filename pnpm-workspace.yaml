@@ -1,7 +1,12 @@
+packages:
+  - website
+
 # Supply chain security
 # https://pnpm.io/supply-chain-security
 minimumReleaseAge: 4320 # 3 days, tighter than v11 default of 1440 (1 day)
 
 allowBuilds:
+  esbuild: true # native bundler used by astro/vite
   lefthook: true
   msw: false
+  sharp: true # native image processing used by astro

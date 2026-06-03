@@ -56,5 +56,23 @@
     "parser": {
       "tailwindDirectives": true
     }
-  }
+  },
+  "html": {
+    // Full parse/format/lint of Astro (and Vue/Svelte) files, incl. the
+    // template — without this Biome only sees the frontmatter fence and
+    // reports false "unused variable" errors for the website's .astro files.
+    "experimentalFullSupportEnabled": true
+  },
+  "overrides": [
+    {
+      // Astro templates use JSX-like syntax but aren't React, so the React
+      // domain rules (e.g. useJsxKeyInIterable on .map loops) don't apply.
+      "includes": ["**/*.astro"],
+      "linter": {
+        "domains": {
+          "react": "none"
+        }
+      }
+    }
+  ]
 }

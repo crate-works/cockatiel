@@ -1,0 +1,102 @@
+---
+layout: ../layouts/DocsLayout.astro
+title: Self-host
+description: Run your own Cockatiel with Docker — a single nginx container, a docker-compose quickstart, and how to point it at your own RO-Crate catalogue.
+---
+
+# Self-hosting Cockatiel
+
+Cockatiel ships as a single, prebuilt container image. It's a static site served by nginx —
+there's no database and no application server to run. Pull the image, map a port, and you have
+your own instance.
+
+## Quickstart
+
+Create a `docker-compose.yml`:
+
+```yaml
+services:
+  cockatiel:
+    image: ghcr.io/crate-works/cockatiel:latest
+    ports:
+      - "8080:80"
+```
+
+Then start it:
+
+```bash
+docker compose up
+```
+
+Open `http://localhost:8080/` and drop a file. That's it — automatic segmentation, waveform
+editing, speakers, looping, and multi-format export all work out of the box, fully offline.
+
+The image sends the `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` headers
+that the WebAssembly VAD needs, so the page is cross-origin isolated without the service-worker
+shim used on the public site.
+
+## Adding catalogue providers
+
+By default the self-host image ships with **no catalogue providers** — local annotation works,
+and the catalogue browser is hidden. To connect Cockatiel to one or more RO-Crate catalogues,
+mount your own `config.json` over the web root.
+
+Start from `config.example.json` in the repository:
+
+```json
+[
+  {
+    "id": "my-catalog",
+    "label": "My Catalogue",
+    "baseUrl": "https://catalog.example.org/api",
+    "itemUrlTemplate": "https://catalog.example.org/items/{itemId}",
+    "oidc": {
+      "issuer": "https://catalog.example.org",
+      "clientId": "your-oidc-client-id",
+      "scopes": "openid profile email"
+    }
+  }
+]
+```
+
+Each provider needs an `id`, a `label`, the catalogue API `baseUrl`, and an `itemUrlTemplate`
+(`{itemId}` is substituted per item). The `oidc` block is optional — include it only if the
+catalogue requires sign-in. The config **replaces** the provider list entirely; an empty array
+(`[]`) means no providers.
+
+Mount it into the container:
+
+```yaml
+services:
+  cockatiel:
+    image: ghcr.io/crate-works/cockatiel:latest
+    ports:
+      - "8080:80"
+    volumes:
+      - ./config.json:/usr/share/nginx/html/config.json:ro
+```
+
+Restart, and the catalogue browser appears with your providers.
+
+## Caveats
+
+A few things to know before you rely on the catalogue and sign-in features:
+
+- **Local features are fully offline.** Opening files and URLs, VAD segmentation, editing, and
+  every export format work with no network and no configuration.
+- **Catalogue and OIDC are your responsibility.** Cockatiel is a client — it points at *your*
+  catalogue API and *your* OIDC client. You supply both in `config.json`.
+- **PARADISEC login won't work out of the box.** Signing in to a provider requires that
+  provider to register your instance's redirect URI
+  (`https://your-host/auth/callback`). PARADISEC must add your URI before its login will
+  succeed against your deployment.
+- **The base path is fixed at `/`.** The prebuilt image assumes it is served at the root of a
+  domain. Serving Cockatiel under a sub-path requires rebuilding the app with a different base
+  path.
+
+## Tags
+
+- `ghcr.io/crate-works/cockatiel:latest` — the latest build from `main`.
+- `ghcr.io/crate-works/cockatiel:vX.Y.Z` — pinned to a specific release.
+
+Pin to a version tag for a reproducible deployment.

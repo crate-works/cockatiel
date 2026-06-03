@@ -1,0 +1,25 @@
+---
+import Layout from './Layout.astro';
+
+interface Props {
+  frontmatter?: { title?: string; description?: string };
+  title?: string;
+  description?: string;
+}
+
+// MDX files pass their frontmatter; .astro callers can pass title/description directly.
+const { frontmatter, title, description } = Astro.props;
+const pageTitle = frontmatter?.title ?? title;
+const pageDescription = frontmatter?.description ?? description;
+---
+
+<Layout
+  title={pageTitle ? `${pageTitle} — Cockatiel` : undefined}
+  description={pageDescription}
+>
+  <article
+    class="prose prose-neutral mx-auto max-w-3xl px-6 py-12 prose-a:text-brand prose-headings:tracking-tight prose-code:font-mono sm:py-16"
+  >
+    <slot />
+  </article>
+</Layout>
