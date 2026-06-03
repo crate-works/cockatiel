@@ -25,6 +25,32 @@ describe('useAppStore', () => {
     });
   });
 
+  describe('loadImportedSegments', () => {
+    it('loads pre-filled segments and their speaker names, ready to edit', () => {
+      const store = useAppStore.getState();
+      store.loadImportedSegments(
+        [
+          { end: 2, id: 'a', speaker: 0, start: 0, value: 'hello' },
+          { end: 4, id: 'b', speaker: 1, start: 2, value: 'world' },
+        ],
+        ['Ada', 'Ben'],
+      );
+
+      const { segments, speakerNames, appPhase, defaultSpeaker } = useAppStore.getState();
+      expect(segments).toHaveLength(2);
+      expect(segments[1]).toMatchObject({ speaker: 1, value: 'world' });
+      expect(speakerNames).toEqual(['Ada', 'Ben']);
+      expect(defaultSpeaker).toBe(0);
+      expect(appPhase).toBe('ready');
+    });
+
+    it('falls back to a default speaker name when none are supplied', () => {
+      const store = useAppStore.getState();
+      store.loadImportedSegments([{ end: 1, id: 'a', speaker: 0, start: 0, value: '' }], []);
+      expect(useAppStore.getState().speakerNames).toEqual(['Speaker 1']);
+    });
+  });
+
   describe('updateSegmentText', () => {
     it('updates text for a specific segment', () => {
       const store = useAppStore.getState();

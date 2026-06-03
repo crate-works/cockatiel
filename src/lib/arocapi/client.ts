@@ -1,5 +1,14 @@
 import { getAccessToken } from '@/lib/auth/store';
-import { ArocapiError, type EntitiesResponse, type Entity, type FilesResponse, type Provider, type SearchRequest, type SearchResponse } from './types';
+import {
+  ArocapiError,
+  type EntitiesResponse,
+  type Entity,
+  type FilesResponse,
+  type Provider,
+  type RoCrate,
+  type SearchRequest,
+  type SearchResponse,
+} from './types';
 
 const joinUrl = (base: string, path: string): string => `${base.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
 
@@ -72,6 +81,18 @@ export const searchEntities = (provider: Provider, request: SearchRequest, opts:
 
 export const getEntity = (provider: Provider, id: string, opts: ClientOptions): Promise<Entity> =>
   requestJson<Entity>(provider.id, joinUrl(provider.baseUrl, `/entity/${encodeURIComponent(id)}`), { headers: { Accept: 'application/json' } }, opts.signal);
+
+// Fetches the full RO-Crate (`@context` + `@graph`) for an entity via the documented
+// Oni endpoint `GET /entity/:id/rocrate`. Unlike `/entity/:id` (a normalised summary),
+// this returns the raw ro-crate-metadata.json graph, which is the only place the
+// media↔annotation links (`hasAnnotation` / `annotationOf`) are exposed.
+export const getEntityCrate = (provider: Provider, id: string, opts: ClientOptions): Promise<RoCrate> =>
+  requestJson<RoCrate>(
+    provider.id,
+    joinUrl(provider.baseUrl, `/entity/${encodeURIComponent(id)}/rocrate`),
+    { headers: { Accept: 'application/json' } },
+    opts.signal,
+  );
 
 export interface ListEntitiesParams {
   memberOf?: string;

@@ -2,13 +2,14 @@ import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { CatalogSource } from '@/lib/arocapi';
 import { resampleTo16kMono } from '@/lib/audio-resample';
+import type { TranscriptImportOptions } from '@/lib/import/types';
 import { sha256Hex } from '@/lib/persistence/fingerprint';
 import { loadSession } from '@/lib/persistence/storage';
 import { useAppStore } from '@/lib/store';
 import { getErrorMessage, isAbortError, pluralizeSegment, titleFromFileName } from '@/lib/utils';
 import { segment } from '@/lib/vad';
 
-export interface ProcessFileOptions {
+export interface ProcessFileOptions extends TranscriptImportOptions {
   catalogSource?: CatalogSource;
   handle?: FileSystemFileHandle;
   sourceUrl?: string;
@@ -23,7 +24,7 @@ export const useAutoSegment = () => {
   }, []);
 
   const processFile = useCallback(async (file: File, options: ProcessFileOptions = {}) => {
-    const { catalogSource, handle, sourceUrl } = options;
+    const { catalogSource, handle, sourceUrl, importedAnnotations, replaceExisting } = options;
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -59,7 +60,9 @@ export const useAutoSegment = () => {
 
       const switchedAway = prevFingerprint !== '' && prevFingerprint !== fingerprint;
 
-      if (existing) {
+      // An import that the user asked to "Replace" deliberately overwrites the saved
+      // session, so we skip the restore-and-return path in that case only.
+      if (existing && !replaceExisting) {
         store.hydrateFromStoredSession(existing);
         if (handle) {
           store.setFileHandle(handle);
@@ -76,11 +79,20 @@ export const useAutoSegment = () => {
         store.setAppPhase('ready');
         store.setStatus('');
         store.setProgress(0);
-        const segments = pluralizeSegment(existing.segments.length);
-        const message = switchedAway
-          ? `Switched to saved session for "${existing.mediaFileName}" (${segments}).`
-          : `Restored saved session for "${existing.mediaFileName}" — ${segments}.`;
-        toast.success(message);
+        if (importedAnnotations) {
+          // We found existing work for this recording that the early (catalog-id)
+          // conflict check didn't catch. Protect it rather than silently clobbering;
+          // the user can load again and choose Replace.
+          toast.info(
+            `Reopened your saved session for "${existing.mediaFileName}". To overwrite it with the catalog transcript, load again and choose Replace.`,
+          );
+        } else {
+          const segments = pluralizeSegment(existing.segments.length);
+          const message = switchedAway
+            ? `Switched to saved session for "${existing.mediaFileName}" (${segments}).`
+            : `Restored saved session for "${existing.mediaFileName}" — ${segments}.`;
+          toast.success(message);
+        }
         return;
       }
 
@@ -113,6 +125,14 @@ export const useAutoSegment = () => {
         store.setCatalogSource(null);
       }
       store.setProgress(0.1);
+
+      // Imported transcript: the segments and speakers are already known, so we skip
+      // VAD entirely (we still decoded the audio above for duration + the waveform).
+      if (importedAnnotations) {
+        store.setStatus('Applying transcript...');
+        store.loadImportedSegments(importedAnnotations.segments, importedAnnotations.speakerNames);
+        return;
+      }
 
       const samples16k = await resampleTo16kMono(originalBuffer);
       store.setProgress(0.3);

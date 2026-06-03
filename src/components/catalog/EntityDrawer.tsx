@@ -1,5 +1,6 @@
 import { Dialog } from '@base-ui/react/dialog';
 import { ExternalLinkIcon, Loader2Icon, LockIcon, XIcon } from 'lucide-react';
+import { useState } from 'react';
 import { type File as CatalogFile, formatArocapiError, getProvider, isMediaFile, itemCatalogUrl, type ProviderId, useEntity, useFiles } from '@/lib/arocapi';
 import { formatBytes } from '@/lib/utils';
 
@@ -8,13 +9,25 @@ interface EntityDrawerProps {
   entityId: string | null;
   open: boolean;
   onClose: () => void;
-  onLoadFile: (file: CatalogFile) => void;
+  onLoadFile: (file: CatalogFile) => void | Promise<void>;
 }
 
 export const EntityDrawer = ({ providerId, entityId, open, onClose, onLoadFile }: EntityDrawerProps) => {
   const provider = getProvider(providerId);
   const entityQuery = useEntity(providerId, entityId);
   const filesQuery = useFiles(providerId, entityId);
+  // While the load handler checks the RO-Crate for an existing transcript, show a
+  // spinner on the clicked file's button.
+  const [checkingId, setCheckingId] = useState<string | null>(null);
+
+  const handleLoad = async (file: CatalogFile) => {
+    setCheckingId(file.id);
+    try {
+      await onLoadFile(file);
+    } finally {
+      setCheckingId(null);
+    }
+  };
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
@@ -128,9 +141,11 @@ export const EntityDrawer = ({ providerId, entityId, open, onClose, onLoadFile }
                             ) : (
                               <button
                                 type="button"
-                                onClick={() => onLoadFile(file)}
-                                className="inline-flex h-7 shrink-0 items-center rounded border border-input bg-background px-3 font-medium text-xs hover:bg-muted"
+                                onClick={() => handleLoad(file)}
+                                disabled={checkingId !== null}
+                                className="inline-flex h-7 shrink-0 items-center gap-1 rounded border border-input bg-background px-3 font-medium text-xs hover:bg-muted disabled:opacity-50"
                               >
+                                {checkingId === file.id && <Loader2Icon className="h-3 w-3 animate-spin" />}
                                 Load
                               </button>
                             )}

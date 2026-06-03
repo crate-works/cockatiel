@@ -41,6 +41,29 @@ export const loadSessionByUrl = async (sourceUrl: string): Promise<StoredSession
   return best;
 };
 
+// Finds a saved session that was previously loaded from the same catalog file. Used
+// to detect (before download) whether importing a transcript would collide with
+// existing work, so we can offer reopen-vs-replace. Only catches catalog-origin
+// sessions; a fingerprint collision from a local/URL load surfaces later in
+// processFile (the fingerprint is the authoritative session key).
+export const loadSessionByCatalogFile = async (providerId: string, fileId: string): Promise<StoredSession | undefined> => {
+  const all = await entries<string, StoredSession>(sessionsStore);
+  let best: StoredSession | undefined;
+  for (const [, session] of all) {
+    if (session.schemaVersion !== SCHEMA_VERSION) {
+      continue;
+    }
+    const source = session.catalogSource;
+    if (!source || source.providerId !== providerId || source.fileId !== fileId) {
+      continue;
+    }
+    if (!best || session.updatedAt > best.updatedAt) {
+      best = session;
+    }
+  }
+  return best;
+};
+
 export const loadMostRecentSession = async (): Promise<StoredSession | undefined> => {
   const all = await entries<string, StoredSession>(sessionsStore);
   let best: StoredSession | undefined;

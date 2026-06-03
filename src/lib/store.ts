@@ -56,6 +56,7 @@ interface AppState {
   discardSession: (fingerprint: string) => Promise<void>;
   hydrateFromStoredSession: (session: StoredSession) => void;
   loadSegments: (segments: VadSegment[]) => void;
+  loadImportedSegments: (segments: Annotation[], speakerNames: string[]) => void;
   mergeWithNext: (id: string) => void;
   mergeWithPrevious: (id: string) => void;
   reset: () => void;
@@ -194,6 +195,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       value: '',
     }));
     set({ appPhase: 'ready', processingProgress: 0, segments, statusMessage: '' });
+  },
+
+  // Like loadSegments, but the segments already carry their transcription text and
+  // speaker index (imported from an external annotation file, e.g. an ELAN .eaf).
+  // The accompanying speakerNames replace the defaults so the imported speakers are
+  // named correctly.
+  loadImportedSegments: (segments, speakerNames) => {
+    const names = speakerNames.length > 0 ? speakerNames.slice(0, MAX_SPEAKERS) : ['Speaker 1'];
+    set({ appPhase: 'ready', defaultSpeaker: 0, processingProgress: 0, segments, speakerNames: names, statusMessage: '' });
   },
 
   updateSegmentBounds: (id, start, end) => set((state) => SegmentOps.rebound(state, id, start, end, makeCtx(state))),

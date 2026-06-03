@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { type CatalogSource, formatArocapiError, getProvider, resolveFileUrl } from '@/lib/arocapi';
+import type { TranscriptImportOptions } from '@/lib/import/types';
 import { loadSessionByUrl } from '@/lib/persistence/storage';
 import { getSkipDownloadConfirm, setSkipDownloadConfirm } from '@/lib/preferences';
 import { fetchRemoteAudio, formatRemoteAudioError, inspectRemoteAudio, type RemoteAudioMeta, validateUrl } from '@/lib/remote-audio';
@@ -22,7 +23,7 @@ interface PendingConfirmationView {
 export interface UseRemoteAudioLoadResult {
   cancel: () => void;
   loadFromUrl: (rawUrl: string) => Promise<void>;
-  loadFromCatalog: (source: CatalogSource) => Promise<void>;
+  loadFromCatalog: (source: CatalogSource, options?: TranscriptImportOptions) => Promise<void>;
   pendingConfirmation: PendingConfirmationView | null;
   resolveConfirmation: (proceed: boolean, dontAskAgain: boolean) => void;
 }
@@ -143,7 +144,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile }: UseRemoteAudio
   );
 
   const loadFromCatalog = useCallback(
-    async (source: CatalogSource) => {
+    async (source: CatalogSource, options?: TranscriptImportOptions) => {
       const provider = getProvider(source.providerId);
       if (!provider) {
         toast.error(`Unknown catalog provider: ${source.providerId}`);
@@ -227,7 +228,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile }: UseRemoteAudio
       // Deliberately don't pass sourceUrl: the resolved URL is a short-lived signed
       // S3 link that would be useless on session re-open. catalogSource carries
       // everything needed to re-resolve a fresh URL on demand.
-      await processFile(file, { catalogSource: source });
+      await processFile(file, { catalogSource: source, ...options });
     },
     [processFile],
   );

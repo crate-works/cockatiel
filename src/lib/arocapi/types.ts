@@ -117,3 +117,19 @@ export interface CatalogSource {
   itemEntityId: string;
   fileId: string;
 }
+
+// Raw RO-Crate JSON-LD as returned by GET /entity/:id/rocrate. We only model the
+// minimum we read (`@id`, `@type`); every other property (hasAnnotation,
+// annotationOf, encodingFormat, filename, …) is reached through index-signature
+// access in the rocrate helpers, because the LDaCA/PARADISEC profile carries far
+// more than we consume and we want to stay tolerant of shape variation.
+export interface RoCrateEntity {
+  '@id': string;
+  '@type': string | string[];
+  [key: string]: unknown;
+}
+
+export interface RoCrate {
+  '@context': unknown;
+  '@graph': RoCrateEntity[];
+}

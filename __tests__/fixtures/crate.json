@@ -1,0 +1,61 @@
+{
+  "@context": ["https://w3id.org/ro/crate/1.2-DRAFT/context", "https://w3id.org/ldac/context"],
+  "@graph": [
+    {
+      "@id": "https://example.org/repository/XX1/0001",
+      "@type": ["Data", "Object", "RepositoryObject"],
+      "name": "Example item",
+      "hasPart": [
+        { "@id": "https://example.org/repository/XX1/0001/XX1-0001-A.eaf" },
+        { "@id": "https://example.org/repository/XX1/0001/XX1-0001-A.mp3" },
+        { "@id": "https://example.org/repository/XX1/0001/XX1-0001-A.wav" },
+        { "@id": "https://example.org/repository/XX1/0001/XX1-0001-B.mp3" },
+        { "@id": "https://example.org/repository/XX1/0001/XX1-0001-notes.xml" }
+      ]
+    },
+    {
+      "@id": "ro-crate-metadata.json",
+      "@type": "CreativeWork",
+      "about": { "@id": "https://example.org/repository/XX1/0001" }
+    },
+    {
+      "@id": "https://example.org/repository/XX1/0001/XX1-0001-A.eaf",
+      "@type": "File",
+      "encodingFormat": "application/eaf+xml",
+      "name": "XX1-0001-A.eaf",
+      "filename": "XX1-0001-A.eaf",
+      "annotationOf": [{ "@id": "https://example.org/repository/XX1/0001/XX1-0001-A.mp3" }, { "@id": "https://example.org/repository/XX1/0001/XX1-0001-A.wav" }]
+    },
+    {
+      "@id": "https://example.org/repository/XX1/0001/XX1-0001-A.mp3",
+      "@type": "File",
+      "encodingFormat": "audio/mpeg",
+      "name": "XX1-0001-A.mp3",
+      "filename": "XX1-0001-A.mp3",
+      "duration": 8.2,
+      "hasAnnotation": [{ "@id": "https://example.org/repository/XX1/0001/XX1-0001-A.eaf" }]
+    },
+    {
+      "@id": "https://example.org/repository/XX1/0001/XX1-0001-A.wav",
+      "@type": "File",
+      "encodingFormat": "audio/wav",
+      "name": "XX1-0001-A.wav",
+      "filename": "XX1-0001-A.wav",
+      "hasAnnotation": [{ "@id": "https://example.org/repository/XX1/0001/XX1-0001-A.eaf" }]
+    },
+    {
+      "@id": "https://example.org/repository/XX1/0001/XX1-0001-B.mp3",
+      "@type": "File",
+      "encodingFormat": "audio/mpeg",
+      "name": "XX1-0001-B.mp3",
+      "filename": "XX1-0001-B.mp3"
+    },
+    {
+      "@id": "https://example.org/repository/XX1/0001/XX1-0001-notes.xml",
+      "@type": "File",
+      "encodingFormat": "application/xml",
+      "name": "XX1-0001-notes.xml",
+      "filename": "XX1-0001-notes.xml"
+    }
+  ]
+}

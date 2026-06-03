@@ -3,19 +3,14 @@ import { useMemo } from 'react';
 import { ProviderAuthChip } from '@/components/auth/ProviderAuthChip';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  type File as CatalogFile,
-  type CatalogSource,
-  getProvider,
-  listProviders,
-  type ProviderId,
-  type SearchRequest,
-  useSearchEntities,
-} from '@/lib/arocapi';
+import { useTranscriptImport } from '@/hooks/useTranscriptImport';
+import { type CatalogSource, listProviders, type ProviderId, type SearchRequest, useSearchEntities } from '@/lib/arocapi';
+import type { TranscriptImportOptions } from '@/lib/import/types';
 import { setLastProviderId } from '@/lib/preferences';
 import { useAppStore } from '@/lib/store';
 import { EntityDrawer } from './EntityDrawer';
 import { FacetSidebar } from './FacetSidebar';
+import { ImportTranscriptDialog } from './ImportTranscriptDialog';
 import { Pagination } from './Pagination';
 import { ResultsList } from './ResultsList';
 import { SearchInput } from './SearchInput';
@@ -32,7 +27,7 @@ const FIXED_FILTERS: Record<string, string[]> = {
 };
 
 interface CatalogSearchPageProps {
-  onLoadCatalog: (source: CatalogSource) => Promise<void>;
+  onLoadCatalog: (source: CatalogSource, options?: TranscriptImportOptions) => Promise<void>;
 }
 
 export const CatalogSearchPage = ({ onLoadCatalog }: CatalogSearchPageProps) => {
@@ -45,23 +40,9 @@ export const CatalogSearchPage = ({ onLoadCatalog }: CatalogSearchPageProps) => 
   const openCatalogEntity = useAppStore((s) => s.openCatalogEntity);
   const closeCatalogDrawer = useAppStore((s) => s.closeCatalogDrawer);
 
-  const handleLoadFile = (file: CatalogFile) => {
-    if (!selectedEntityId) {
-      return;
-    }
-    const provider = getProvider(providerId);
-    if (!provider) {
-      return;
-    }
-    const source: CatalogSource = {
-      providerId: provider.id,
-      baseUrl: provider.baseUrl,
-      itemEntityId: selectedEntityId,
-      fileId: file.id,
-    };
-    closeCatalogDrawer();
-    void onLoadCatalog(source);
-  };
+  // Loading a catalog file first checks the item's RO-Crate for an existing transcript
+  // and, if present, prompts the user to bring it across (see useTranscriptImport).
+  const { dialog: importDialog, requestLoad, resolveDialog } = useTranscriptImport({ onLoadCatalog });
 
   const providers = listProviders();
   const provider = providers.find((p) => p.id === providerId) ?? providers[0];
@@ -142,7 +123,15 @@ export const CatalogSearchPage = ({ onLoadCatalog }: CatalogSearchPageProps) => 
         </div>
       </div>
 
-      <EntityDrawer providerId={providerId} entityId={selectedEntityId} open={drawerOpen} onClose={closeCatalogDrawer} onLoadFile={handleLoadFile} />
+      <EntityDrawer providerId={providerId} entityId={selectedEntityId} open={drawerOpen} onClose={closeCatalogDrawer} onLoadFile={requestLoad} />
+
+      <ImportTranscriptDialog
+        open={importDialog !== null}
+        mediaFilename={importDialog?.mediaFilename ?? ''}
+        transcriptFilename={importDialog?.transcriptFilename ?? ''}
+        hasExisting={importDialog?.hasExisting ?? false}
+        onChoose={resolveDialog}
+      />
     </div>
   );
 };
