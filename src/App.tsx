@@ -26,7 +26,7 @@ import { useAutoSegment } from '@/hooks/useAutoSegment';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useRemoteAudioLoad } from '@/hooks/useRemoteAudioLoad';
 import { listProviders } from '@/lib/arocapi';
-import { AUTH_CALLBACK_PATH } from '@/lib/auth';
+import { isAuthCallbackPath } from '@/lib/auth';
 import { startAutoSave } from '@/lib/persistence/subscribe';
 import { getLastProviderId } from '@/lib/preferences';
 import { useAppStore } from '@/lib/store';
@@ -62,7 +62,7 @@ const App = () => {
   // The OIDC callback lands at <base>/auth/callback?code=…&state=…. We detect
   // it once on mount and render <AuthCallback> in place of the normal phase
   // machine, then hand control back via onDone once tokens are stored.
-  const [isAuthCallback, setIsAuthCallback] = useState(() => window.location.pathname === AUTH_CALLBACK_PATH);
+  const [isAuthCallback, setIsAuthCallback] = useState(() => isAuthCallbackPath(window.location.pathname));
 
   // No catalog providers configured (no/invalid config.json) ⇒ hide catalog entry.
   const hasCatalogs = listProviders().length > 0;

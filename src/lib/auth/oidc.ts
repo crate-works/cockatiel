@@ -13,6 +13,14 @@ const baseUrl = import.meta.env.BASE_URL;
 export const AUTH_CALLBACK_PATH = `${baseUrl.replace(/\/$/, '')}/auth/callback`;
 export const HOME_PATH = baseUrl;
 
+// Does a pathname point at the OIDC callback? GitHub Pages and nginx both
+// 301-redirect a directory request (…/auth/callback) to add a trailing slash
+// (…/auth/callback/) before serving its index.html, so we match either form —
+// otherwise the redirected callback is never detected and sign-in silently
+// fails on the real deploys (it only "works" on the dev server, which serves
+// the SPA fallback without redirecting).
+export const isAuthCallbackPath = (pathname: string): boolean => pathname.replace(/\/$/, '') === AUTH_CALLBACK_PATH;
+
 const oidcRedirectUri = (): string => `${window.location.origin}${AUTH_CALLBACK_PATH}`;
 
 // Cache discovered AuthorizationServer per issuer (each Provider may target a
