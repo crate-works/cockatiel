@@ -1,6 +1,6 @@
 import { Dialog } from '@base-ui/react/dialog';
 import { ExternalLinkIcon, Loader2Icon, LockIcon, XIcon } from 'lucide-react';
-import { type File as CatalogFile, formatArocapiError, getProvider, itemCatalogUrl, type ProviderId, useEntity, useFiles } from '@/lib/arocapi';
+import { type File as CatalogFile, formatArocapiError, getProvider, isMediaFile, itemCatalogUrl, type ProviderId, useEntity, useFiles } from '@/lib/arocapi';
 import { formatBytes } from '@/lib/utils';
 
 interface EntityDrawerProps {
@@ -23,7 +23,7 @@ export const EntityDrawer = ({ providerId, entityId, open, onClose, onLoadFile }
   };
 
   const entity = entityQuery.data;
-  const files = filesQuery.data?.files ?? [];
+  const files = (filesQuery.data?.files ?? []).filter(isMediaFile);
 
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
