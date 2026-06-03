@@ -39,8 +39,8 @@ jobs:
       - name: Download WASM VAD
         run: pnpm run download:wasm
 
-      - name: Build
-        run: pnpm run build
+      - name: Build combined site + app
+        run: pnpm run build:deploy
 
       - name: Configure Pages
         uses: actions/configure-pages@v6
@@ -48,7 +48,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: "./dist"
+          path: "./dist-deploy"
 
       - name: Deploy to GitHub Pages
         id: deployment
