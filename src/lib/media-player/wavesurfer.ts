@@ -57,8 +57,11 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
   let pendingViewport: [number, number] | null = null;
 
   const publishViewport = (visibleStartTime: number, visibleEndTime: number): void => {
-    const width = container.clientWidth;
-    const pps = width / (visibleEndTime - visibleStartTime || 1);
+    // Use the authoritative zoom (px-per-second the waveform actually rendered
+    // at) rather than re-deriving it from the visible window, so transcript
+    // tiers scroll at exactly the waveform's rate. Fall back to the window only
+    // before the first zoom is known.
+    const pps = state.pxPerSec > 0 ? state.pxPerSec : container.clientWidth / (visibleEndTime - visibleStartTime || 1);
     const viewport: Viewport = { pixelsPerSecond: pps, visibleEndTime, visibleStartTime };
     state.viewport = viewport;
     emit({ type: 'viewport', viewport });
@@ -122,6 +125,15 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
   const unsubZoom = ws.on('zoom', (pxPerSec: number) => {
     state.pxPerSec = pxPerSec;
     emit({ minPxPerSec: state.minPxPerSec, pxPerSec, type: 'zoom' });
+    // A zoom that leaves the scroll position unchanged (e.g. the playhead at the
+    // very start) emits no native scroll event, so the viewport — and every
+    // transcript tier positioned from it — would otherwise keep the previous
+    // zoom's scale. Recompute the visible window at the new scale and republish.
+    if (state.isReady && pxPerSec > 0) {
+      const visibleStartTime = ws.getScroll() / pxPerSec;
+      const visibleEndTime = visibleStartTime + ws.getWidth() / pxPerSec;
+      scheduleViewport(visibleStartTime, visibleEndTime);
+    }
   });
 
   const unsubScroll = ws.on('scroll', (visibleStartTime: number, visibleEndTime: number) => {
