@@ -1,21 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import { AUTH_CALLBACK_PATH, isAuthCallbackPath } from '@/lib/auth/oidc';
+import { AUTH_CALLBACK_PATH, safeReturnTo } from '@/lib/auth/oidc';
 
 // In tests `import.meta.env.BASE_URL` is `/`, so the callback path is /auth/callback.
-describe('isAuthCallbackPath', () => {
-  it('matches the exact callback path', () => {
-    expect(isAuthCallbackPath(AUTH_CALLBACK_PATH)).toBe(true);
-    expect(isAuthCallbackPath('/auth/callback')).toBe(true);
+describe('AUTH_CALLBACK_PATH', () => {
+  it('is the base-aware callback path', () => {
+    expect(AUTH_CALLBACK_PATH).toBe('/auth/callback');
+  });
+});
+
+describe('safeReturnTo', () => {
+  it('accepts router-relative in-app paths', () => {
+    expect(safeReturnTo('/catalog')).toBe('/catalog');
+    expect(safeReturnTo('/catalog?q=hello&page=2')).toBe('/catalog?q=hello&page=2');
+    expect(safeReturnTo('/session/abc123')).toBe('/session/abc123');
   });
 
-  it('matches the trailing-slash form GitHub Pages / nginx redirect to', () => {
-    expect(isAuthCallbackPath('/auth/callback/')).toBe(true);
+  it('falls back to root for absent or empty values', () => {
+    expect(safeReturnTo(null)).toBe('/');
+    expect(safeReturnTo(undefined)).toBe('/');
+    expect(safeReturnTo('')).toBe('/');
   });
 
-  it('does not match other paths', () => {
-    expect(isAuthCallbackPath('/')).toBe(false);
-    expect(isAuthCallbackPath('/auth')).toBe(false);
-    expect(isAuthCallbackPath('/auth/callbackx')).toBe(false);
-    expect(isAuthCallbackPath('/auth/callback/extra')).toBe(false);
+  it('rejects open-redirect attempts', () => {
+    expect(safeReturnTo('https://evil.example/phish')).toBe('/');
+    expect(safeReturnTo('//evil.example')).toBe('/');
+    expect(safeReturnTo('/\\evil.example')).toBe('/');
+    expect(safeReturnTo('javascript:alert(1)')).toBe('/');
+    expect(safeReturnTo('catalog')).toBe('/');
   });
 });

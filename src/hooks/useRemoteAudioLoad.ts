@@ -12,6 +12,9 @@ import type { ProcessFileOptions } from './useAutoSegment';
 interface UseRemoteAudioLoadArgs {
   processFile: (file: File, options?: ProcessFileOptions) => Promise<void>;
   setAudioFile: (file: File | null) => void;
+  // Called when a cached session is restored directly (the non-processFile path)
+  // so the caller can route to /session/$fingerprint.
+  onReady: (fingerprint: string) => void;
 }
 
 interface PendingConfirmationView {
@@ -28,7 +31,7 @@ export interface UseRemoteAudioLoadResult {
   resolveConfirmation: (proceed: boolean, dontAskAgain: boolean) => void;
 }
 
-export const useRemoteAudioLoad = ({ processFile, setAudioFile }: UseRemoteAudioLoadArgs): UseRemoteAudioLoadResult => {
+export const useRemoteAudioLoad = ({ processFile, setAudioFile, onReady }: UseRemoteAudioLoadArgs): UseRemoteAudioLoadResult => {
   const downloadAbortRef = useRef<AbortController | null>(null);
   const confirmationResolverRef = useRef<((proceed: boolean) => void) | null>(null);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmationView | null>(null);
@@ -77,9 +80,10 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile }: UseRemoteAudio
         // until backgroundFetch lands the bytes for this session.
         setAudioFile(null);
         store.hydrateFromStoredSession(cached);
-        store.setAppPhase('ready');
+        store.setEditorStatus('ready');
         store.setStatus('');
         store.setProgress(0);
+        onReady(cached.fingerprint);
         toast.success(`Restored saved session for "${cached.mediaFileName}" — ${pluralizeSegment(cached.segments.length)}.`);
         void runBackgroundFetch(url, cached.mediaFileName, setAudioFile, downloadAbortRef);
         return;
@@ -92,7 +96,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile }: UseRemoteAudio
 
       const store = useAppStore.getState();
       const handleFailure = (error: unknown) => {
-        store.setAppPhase('upload');
+        store.setEditorStatus('idle');
         store.setStatus('');
         if (isAbortError(error)) {
           return;
@@ -100,7 +104,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile }: UseRemoteAudio
         toast.error(formatRemoteAudioError(error));
       };
 
-      store.setAppPhase('processing');
+      store.setEditorStatus('processing');
       store.setStatus('Inspecting URL...');
       store.setProgress(0);
 
@@ -115,7 +119,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile }: UseRemoteAudio
       if (!getSkipDownloadConfirm()) {
         const proceed = await requestConfirmation(meta, url.host);
         if (!proceed) {
-          store.setAppPhase('upload');
+          store.setEditorStatus('idle');
           store.setStatus('');
           return;
         }
@@ -140,7 +144,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile }: UseRemoteAudio
 
       await processFile(file, { sourceUrl: href });
     },
-    [processFile, requestConfirmation, setAudioFile],
+    [processFile, requestConfirmation, setAudioFile, onReady],
   );
 
   const loadFromCatalog = useCallback(
@@ -158,7 +162,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile }: UseRemoteAudio
 
       const store = useAppStore.getState();
       const handleFailure = (error: unknown) => {
-        store.setAppPhase('upload');
+        store.setEditorStatus('idle');
         store.setStatus('');
         if (isAbortError(error)) {
           return;
@@ -166,7 +170,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile }: UseRemoteAudio
         toast.error(formatArocapiError(error));
       };
 
-      store.setAppPhase('processing');
+      store.setEditorStatus('processing');
       store.setStatus('Resolving file from catalog...');
       store.setProgress(0);
 
@@ -185,7 +189,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile }: UseRemoteAudio
       try {
         url = validateUrl(resolved);
       } catch (error) {
-        store.setAppPhase('upload');
+        store.setEditorStatus('idle');
         store.setStatus('');
         toast.error(formatRemoteAudioError(error));
         return;
@@ -196,7 +200,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile }: UseRemoteAudio
       try {
         meta = await inspectRemoteAudio(url, signal);
       } catch (error) {
-        store.setAppPhase('upload');
+        store.setEditorStatus('idle');
         store.setStatus('');
         if (!isAbortError(error)) {
           toast.error(formatRemoteAudioError(error));
@@ -217,7 +221,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile }: UseRemoteAudio
           signal,
         });
       } catch (error) {
-        store.setAppPhase('upload');
+        store.setEditorStatus('idle');
         store.setStatus('');
         if (!isAbortError(error)) {
           toast.error(formatRemoteAudioError(error));

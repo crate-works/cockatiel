@@ -19,6 +19,11 @@ import { isAbortError } from '@/lib/utils';
 
 interface UseTranscriptImportArgs {
   onLoadCatalog: (source: CatalogSource, options?: TranscriptImportOptions) => Promise<void>;
+  // The currently-open catalog item (from the URL) and a way to close its drawer
+  // (drop the ?entity= param). Catalog navigation state lives in the router now.
+  providerId: string;
+  entityId: string | null;
+  onClose: () => void;
 }
 
 interface ImportDialogState {
@@ -42,20 +47,18 @@ export interface UseTranscriptImportResult {
 // Orchestrates loading a catalog media file with the optional "bring the existing
 // transcript across" step: discover an .eaf in the item's RO-Crate, prompt the user,
 // then either import it or fall through to the normal (VAD) load.
-export const useTranscriptImport = ({ onLoadCatalog }: UseTranscriptImportArgs): UseTranscriptImportResult => {
+export const useTranscriptImport = ({ onLoadCatalog, providerId, entityId, onClose }: UseTranscriptImportArgs): UseTranscriptImportResult => {
   const [dialog, setDialog] = useState<ImportDialogState | null>(null);
   const pendingRef = useRef<PendingImport | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const requestLoad = useCallback(
     async (file: CatalogFile) => {
-      const store = useAppStore.getState();
-      const { providerId, selectedEntityId } = store.catalogSearch;
       const provider = getProvider(providerId);
-      if (!provider || !selectedEntityId) {
+      if (!provider || !entityId) {
         return;
       }
-      const source: CatalogSource = { providerId, baseUrl: provider.baseUrl, itemEntityId: selectedEntityId, fileId: file.id };
+      const source: CatalogSource = { providerId, baseUrl: provider.baseUrl, itemEntityId: entityId, fileId: file.id };
 
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -64,10 +67,10 @@ export const useTranscriptImport = ({ onLoadCatalog }: UseTranscriptImportArgs):
       // Discover whether this media file has a linked transcript in the crate. A failure
       // here (crate missing/unreachable) is not fatal — we just fall back to a normal load.
       try {
-        const crate = await getEntityCrate(provider, selectedEntityId, { signal: controller.signal });
+        const crate = await getEntityCrate(provider, entityId, { signal: controller.signal });
         const transcripts = findTranscriptsForFile(crate, file.filename);
         if (transcripts.length === 0) {
-          store.closeCatalogDrawer();
+          onClose();
           void onLoadCatalog(source);
           return;
         }
@@ -80,11 +83,11 @@ export const useTranscriptImport = ({ onLoadCatalog }: UseTranscriptImportArgs):
           return;
         }
         console.warn('Could not check the catalog for an existing transcript:', error);
-        store.closeCatalogDrawer();
+        onClose();
         void onLoadCatalog(source);
       }
     },
-    [onLoadCatalog],
+    [onLoadCatalog, providerId, entityId, onClose],
   );
 
   const resolveDialog = useCallback(
@@ -97,7 +100,7 @@ export const useTranscriptImport = ({ onLoadCatalog }: UseTranscriptImportArgs):
       }
 
       const store = useAppStore.getState();
-      store.closeCatalogDrawer();
+      onClose();
 
       // "Reopen saved session" / "Auto-segment": load without importing. processFile
       // restores an existing session or runs VAD as appropriate.
@@ -109,7 +112,7 @@ export const useTranscriptImport = ({ onLoadCatalog }: UseTranscriptImportArgs):
       void (async () => {
         const controller = new AbortController();
         abortRef.current = controller;
-        store.setAppPhase('processing');
+        store.setEditorStatus('processing');
         store.setStatus('Loading transcript...');
         store.setProgress(0);
 
@@ -134,7 +137,7 @@ export const useTranscriptImport = ({ onLoadCatalog }: UseTranscriptImportArgs):
         void onLoadCatalog(pending.source, { importedAnnotations: parsed, replaceExisting: choice === 'replace' });
       })();
     },
-    [onLoadCatalog],
+    [onLoadCatalog, onClose],
   );
 
   return { dialog, requestLoad, resolveDialog };

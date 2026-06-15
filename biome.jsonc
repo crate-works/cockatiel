@@ -11,6 +11,9 @@
       "**",
       // shadcn/ui components (managed by CLI)
       "!!src/components/ui",
+      // TanStack Router generated route tree (committed so CI type-checks
+      // without a generate step, but not ours to format/lint)
+      "!!src/routeTree.gen.ts",
       // Build output
       "!!**/dist",
       // Claude Code config

@@ -1,5 +1,6 @@
 import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
+import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
@@ -14,7 +15,10 @@ export default defineConfig({
   // Catalog providers are loaded at runtime from public/config.json (served at
   // `${BASE_URL}config.json`); the docker image overwrites it with an empty list.
   base: process.env.VITE_BASE_PATH || '/',
-  plugins: [react(), tailwindcss()],
+  // tanstackRouter must precede the React plugin so the generated route tree is
+  // transformed by it. autoCodeSplitting keeps route components out of the main
+  // bundle.
+  plugins: [tanstackRouter({ target: 'react', autoCodeSplitting: true }), react(), tailwindcss()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

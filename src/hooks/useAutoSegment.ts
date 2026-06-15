@@ -15,7 +15,13 @@ export interface ProcessFileOptions extends TranscriptImportOptions {
   sourceUrl?: string;
 }
 
-export const useAutoSegment = () => {
+interface UseAutoSegmentArgs {
+  // Called once a session is ready (restored or freshly segmented) with its
+  // fingerprint, so the caller can route to /session/$fingerprint.
+  onReady: (fingerprint: string) => void;
+}
+
+export const useAutoSegment = ({ onReady }: UseAutoSegmentArgs) => {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -23,47 +29,98 @@ export const useAutoSegment = () => {
     abortRef.current?.abort();
   }, []);
 
-  const processFile = useCallback(async (file: File, options: ProcessFileOptions = {}) => {
-    const { catalogSource, handle, sourceUrl, importedAnnotations, replaceExisting } = options;
+  const processFile = useCallback(
+    async (file: File, options: ProcessFileOptions = {}) => {
+      const { catalogSource, handle, sourceUrl, importedAnnotations, replaceExisting } = options;
 
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const { signal } = controller;
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const { signal } = controller;
 
-    const store = useAppStore.getState();
-    const prevFingerprint = store.fingerprint;
-    const prevFileName = store.mediaFileName;
-    setAudioFile(file);
+      const store = useAppStore.getState();
+      const prevFingerprint = store.fingerprint;
+      const prevFileName = store.mediaFileName;
+      setAudioFile(file);
 
-    store.setAppPhase('processing');
-    store.setStatus('Reading file...');
-    store.setProgress(0);
+      store.setEditorStatus('processing');
+      store.setStatus('Reading file...');
+      store.setProgress(0);
 
-    let audioContext: AudioContext | null = null;
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      if (signal.aborted) {
-        throw new DOMException('Aborted', 'AbortError');
-      }
+      let audioContext: AudioContext | null = null;
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        if (signal.aborted) {
+          throw new DOMException('Aborted', 'AbortError');
+        }
 
-      store.setStatus('Verifying file...');
-      const fingerprint = await sha256Hex(arrayBuffer);
-      if (signal.aborted) {
-        throw new DOMException('Aborted', 'AbortError');
-      }
+        store.setStatus('Verifying file...');
+        const fingerprint = await sha256Hex(arrayBuffer);
+        if (signal.aborted) {
+          throw new DOMException('Aborted', 'AbortError');
+        }
 
-      const existing = await loadSession(fingerprint);
-      if (signal.aborted) {
-        throw new DOMException('Aborted', 'AbortError');
-      }
+        const existing = await loadSession(fingerprint);
+        if (signal.aborted) {
+          throw new DOMException('Aborted', 'AbortError');
+        }
 
-      const switchedAway = prevFingerprint !== '' && prevFingerprint !== fingerprint;
+        const switchedAway = prevFingerprint !== '' && prevFingerprint !== fingerprint;
 
-      // An import that the user asked to "Replace" deliberately overwrites the saved
-      // session, so we skip the restore-and-return path in that case only.
-      if (existing && !replaceExisting) {
-        store.hydrateFromStoredSession(existing);
+        // An import that the user asked to "Replace" deliberately overwrites the saved
+        // session, so we skip the restore-and-return path in that case only.
+        if (existing && !replaceExisting) {
+          store.hydrateFromStoredSession(existing);
+          if (handle) {
+            store.setFileHandle(handle);
+          }
+          if (sourceUrl) {
+            store.setSourceUrl(sourceUrl);
+          }
+          if (catalogSource) {
+            store.setCatalogSource(catalogSource);
+          }
+          if (file.name !== existing.mediaFileName) {
+            store.setMediaFile(file.name, existing.mediaDuration);
+          }
+          store.setEditorStatus('ready');
+          store.setStatus('');
+          store.setProgress(0);
+          onReady(fingerprint);
+          if (importedAnnotations) {
+            // We found existing work for this recording that the early (catalog-id)
+            // conflict check didn't catch. Protect it rather than silently clobbering;
+            // the user can load again and choose Replace.
+            toast.info(
+              `Reopened your saved session for "${existing.mediaFileName}". To overwrite it with the catalog transcript, load again and choose Replace.`,
+            );
+          } else {
+            const segments = pluralizeSegment(existing.segments.length);
+            const message = switchedAway
+              ? `Switched to saved session for "${existing.mediaFileName}" (${segments}).`
+              : `Restored saved session for "${existing.mediaFileName}" — ${segments}.`;
+            toast.success(message);
+          }
+          return;
+        }
+
+        if (switchedAway) {
+          toast.info(`Starting a new session. Your saved work on "${prevFileName}" is still available.`);
+        }
+
+        store.setStatus('Decoding audio...');
+        audioContext = new AudioContext();
+        const originalBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        audioContext.close();
+        audioContext = null;
+
+        if (signal.aborted) {
+          throw new DOMException('Aborted', 'AbortError');
+        }
+
+        store.setMediaFile(file.name, originalBuffer.duration);
+        store.setTitle(titleFromFileName(file.name));
+        store.setFingerprint(fingerprint);
         if (handle) {
           store.setFileHandle(handle);
         }
@@ -72,92 +129,47 @@ export const useAutoSegment = () => {
         }
         if (catalogSource) {
           store.setCatalogSource(catalogSource);
-        }
-        if (file.name !== existing.mediaFileName) {
-          store.setMediaFile(file.name, existing.mediaDuration);
-        }
-        store.setAppPhase('ready');
-        store.setStatus('');
-        store.setProgress(0);
-        if (importedAnnotations) {
-          // We found existing work for this recording that the early (catalog-id)
-          // conflict check didn't catch. Protect it rather than silently clobbering;
-          // the user can load again and choose Replace.
-          toast.info(
-            `Reopened your saved session for "${existing.mediaFileName}". To overwrite it with the catalog transcript, load again and choose Replace.`,
-          );
         } else {
-          const segments = pluralizeSegment(existing.segments.length);
-          const message = switchedAway
-            ? `Switched to saved session for "${existing.mediaFileName}" (${segments}).`
-            : `Restored saved session for "${existing.mediaFileName}" — ${segments}.`;
-          toast.success(message);
+          store.setCatalogSource(null);
         }
-        return;
+        store.setProgress(0.1);
+
+        // Imported transcript: the segments and speakers are already known, so we skip
+        // VAD entirely (we still decoded the audio above for duration + the waveform).
+        if (importedAnnotations) {
+          store.setStatus('Applying transcript...');
+          store.loadImportedSegments(importedAnnotations.segments, importedAnnotations.speakerNames);
+          onReady(fingerprint);
+          return;
+        }
+
+        const samples16k = await resampleTo16kMono(originalBuffer);
+        store.setProgress(0.3);
+        store.setStatus('Segmenting audio...');
+
+        // Read vadConfig fresh — user may have changed settings since processing started
+        const { vadConfig } = useAppStore.getState();
+
+        const segments = await segment(samples16k, vadConfig, {
+          onProgress: (fraction) => store.setProgress(0.3 + fraction * 0.7),
+          onStatus: (msg) => store.setStatus(msg),
+          signal,
+        });
+
+        store.loadSegments(segments);
+        onReady(fingerprint);
+      } catch (error) {
+        audioContext?.close();
+        if (isAbortError(error)) {
+          return;
+        }
+        console.error('Auto-segment failed:', error);
+        toast.error(`Auto-segment failed: ${getErrorMessage(error)}`);
+        store.setEditorStatus('idle');
       }
-
-      if (switchedAway) {
-        toast.info(`Starting a new session. Your saved work on "${prevFileName}" is still available.`);
-      }
-
-      store.setStatus('Decoding audio...');
-      audioContext = new AudioContext();
-      const originalBuffer = await audioContext.decodeAudioData(arrayBuffer);
-      audioContext.close();
-      audioContext = null;
-
-      if (signal.aborted) {
-        throw new DOMException('Aborted', 'AbortError');
-      }
-
-      store.setMediaFile(file.name, originalBuffer.duration);
-      store.setTitle(titleFromFileName(file.name));
-      store.setFingerprint(fingerprint);
-      if (handle) {
-        store.setFileHandle(handle);
-      }
-      if (sourceUrl) {
-        store.setSourceUrl(sourceUrl);
-      }
-      if (catalogSource) {
-        store.setCatalogSource(catalogSource);
-      } else {
-        store.setCatalogSource(null);
-      }
-      store.setProgress(0.1);
-
-      // Imported transcript: the segments and speakers are already known, so we skip
-      // VAD entirely (we still decoded the audio above for duration + the waveform).
-      if (importedAnnotations) {
-        store.setStatus('Applying transcript...');
-        store.loadImportedSegments(importedAnnotations.segments, importedAnnotations.speakerNames);
-        return;
-      }
-
-      const samples16k = await resampleTo16kMono(originalBuffer);
-      store.setProgress(0.3);
-      store.setStatus('Segmenting audio...');
-
-      // Read vadConfig fresh — user may have changed settings since processing started
-      const { vadConfig } = useAppStore.getState();
-
-      const segments = await segment(samples16k, vadConfig, {
-        onProgress: (fraction) => store.setProgress(0.3 + fraction * 0.7),
-        onStatus: (msg) => store.setStatus(msg),
-        signal,
-      });
-
-      store.loadSegments(segments);
-    } catch (error) {
-      audioContext?.close();
-      if (isAbortError(error)) {
-        return;
-      }
-      console.error('Auto-segment failed:', error);
-      toast.error(`Auto-segment failed: ${getErrorMessage(error)}`);
-      store.setAppPhase('upload');
-    }
-  }, []);
+    },
+    [onReady],
+  );
 
   return { audioFile, cancel, processFile, setAudioFile };
 };

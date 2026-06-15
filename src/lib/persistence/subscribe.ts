@@ -25,7 +25,7 @@ export const startAutoSave = (): (() => void) => {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   const unsubscribe = useAppStore.subscribe((state) => {
-    if (state.appPhase !== 'ready' || !state.fingerprint) {
+    if (state.editorStatus !== 'ready' || !state.fingerprint) {
       return;
     }
     const payload = pickPayload(state);

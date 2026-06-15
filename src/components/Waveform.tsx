@@ -55,7 +55,7 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
     player.loadBlob(audioFile).catch((err: unknown) => {
       console.error('Failed to load audio:', err);
       useAppStore.getState().setStatus(`Error loading audio: ${getErrorMessage(err)}`);
-      useAppStore.getState().setAppPhase('upload');
+      useAppStore.getState().setEditorStatus('idle');
     });
   }, [player, audioFile]);
 

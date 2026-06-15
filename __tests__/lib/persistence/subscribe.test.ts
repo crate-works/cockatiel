@@ -22,18 +22,18 @@ describe('persistence/subscribe', () => {
     stopAutoSave = null;
   });
 
-  it('does not save while appPhase is not "ready"', async () => {
+  it('does not save while editorStatus is not "ready"', async () => {
     const store = useAppStore.getState();
     store.setFingerprint('abc');
     store.setMediaFile('file.wav', 10);
-    // appPhase is still 'workbench' (initial)
+    // editorStatus is still 'idle' (initial)
     await waitForDebounce();
     expect(await loadSession('abc')).toBeUndefined();
   });
 
-  it('does not save when fingerprint is empty even if phase is ready', async () => {
+  it('does not save when fingerprint is empty even if editorStatus is ready', async () => {
     const store = useAppStore.getState();
-    store.setAppPhase('ready');
+    store.setEditorStatus('ready');
     store.loadSegments([{ end: 1, start: 0 }]);
     await waitForDebounce();
     // No fingerprint was set, so no save happened for any key
@@ -41,7 +41,7 @@ describe('persistence/subscribe', () => {
     expect(s.fingerprint).toBe('');
   });
 
-  it('saves after debounce when appPhase=ready and fingerprint is set', async () => {
+  it('saves after debounce when editorStatus=ready and fingerprint is set', async () => {
     const store = useAppStore.getState();
     store.setFingerprint('abc');
     store.setMediaFile('a.wav', 10);

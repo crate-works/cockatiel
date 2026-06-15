@@ -14,14 +14,14 @@ describe('useAppStore', () => {
         { end: 5.0, start: 3.0 },
       ]);
 
-      const { segments, appPhase } = useAppStore.getState();
+      const { segments, editorStatus } = useAppStore.getState();
       expect(segments).toHaveLength(2);
       expect(segments[0].start).toBe(0.5);
       expect(segments[0].end).toBe(2.5);
       expect(segments[0].value).toBe('');
       expect(segments[0].speaker).toBe(0);
       expect(segments[0].id).toBeTruthy();
-      expect(appPhase).toBe('ready');
+      expect(editorStatus).toBe('ready');
     });
   });
 
@@ -36,12 +36,12 @@ describe('useAppStore', () => {
         ['Ada', 'Ben'],
       );
 
-      const { segments, speakerNames, appPhase, defaultSpeaker } = useAppStore.getState();
+      const { segments, speakerNames, editorStatus, defaultSpeaker } = useAppStore.getState();
       expect(segments).toHaveLength(2);
       expect(segments[1]).toMatchObject({ speaker: 1, value: 'world' });
       expect(speakerNames).toEqual(['Ada', 'Ben']);
       expect(defaultSpeaker).toBe(0);
-      expect(appPhase).toBe('ready');
+      expect(editorStatus).toBe('ready');
     });
 
     it('falls back to a default speaker name when none are supplied', () => {

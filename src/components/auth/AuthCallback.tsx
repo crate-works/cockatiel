@@ -1,10 +1,13 @@
 import { AlertCircleIcon, Loader2Icon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { completeSignIn, HOME_PATH, useAuthStore } from '@/lib/auth';
+import { completeSignIn, useAuthStore } from '@/lib/auth';
 
 interface AuthCallbackProps {
-  onDone: () => void;
+  // Navigate to the validated, router-relative return path once sign-in resolves
+  // (success or the user dismissing an error). The router replaces the URL, so the
+  // ?code=/?state= callback URL leaves no history entry to refresh back onto.
+  onDone: (returnTo: string) => void;
 }
 
 export const AuthCallback = ({ onDone }: AuthCallbackProps) => {
@@ -17,16 +20,12 @@ export const AuthCallback = ({ onDone }: AuthCallbackProps) => {
     (async () => {
       try {
         const callbackUrl = new URL(window.location.href);
-        const { providerId, tokens, user } = await completeSignIn(callbackUrl);
+        const { providerId, tokens, user, returnTo } = await completeSignIn(callbackUrl);
         if (cancelled) {
           return;
         }
         setSession(providerId, tokens, user);
-        // Strip the ?code= and ?state= from the address bar before handing back
-        // to the app — leaving them in is ugly and the browser would re-trigger
-        // the callback on a refresh.
-        window.history.replaceState({}, '', HOME_PATH);
-        onDone();
+        onDone(returnTo);
       } catch (err) {
         if (cancelled) {
           return;
@@ -49,8 +48,7 @@ export const AuthCallback = ({ onDone }: AuthCallbackProps) => {
           variant="outline"
           size="sm"
           onClick={() => {
-            window.history.replaceState({}, '', HOME_PATH);
-            onDone();
+            onDone('/');
           }}
         >
           Continue

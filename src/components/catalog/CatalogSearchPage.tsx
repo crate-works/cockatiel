@@ -1,13 +1,14 @@
+import { getRouteApi } from '@tanstack/react-router';
 import { ArrowLeftIcon } from 'lucide-react';
 import { useMemo } from 'react';
+import { useAppShell } from '@/app-shell';
 import { ProviderAuthChip } from '@/components/auth/ProviderAuthChip';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTranscriptImport } from '@/hooks/useTranscriptImport';
-import { type CatalogSource, listProviders, type SearchRequest, useSearchEntities } from '@/lib/arocapi';
-import type { TranscriptImportOptions } from '@/lib/import/types';
-import { setLastProviderId } from '@/lib/preferences';
-import { useAppStore } from '@/lib/store';
+import { listProviders, type SearchRequest, useSearchEntities } from '@/lib/arocapi';
+import { type CatalogSearch, filtersFromSearch, filtersToSearch } from '@/lib/catalog/search';
+import { getLastProviderId, setLastProviderId } from '@/lib/preferences';
 import { EntityDrawer } from './EntityDrawer';
 import { FacetSidebar } from './FacetSidebar';
 import { ImportTranscriptDialog } from './ImportTranscriptDialog';
@@ -26,26 +27,68 @@ const FIXED_FILTERS: Record<string, string[]> = {
   mediaType: ['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp3', 'audio/flac', 'audio/ogg', 'audio/mp4'],
 };
 
-interface CatalogSearchPageProps {
-  onLoadCatalog: (source: CatalogSource, options?: TranscriptImportOptions) => Promise<void>;
-}
+const routeApi = getRouteApi('/catalog');
 
-export const CatalogSearchPage = ({ onLoadCatalog }: CatalogSearchPageProps) => {
-  const { providerId, query, filters, page, selectedEntityId, drawerOpen } = useAppStore((s) => s.catalogSearch);
-  const exitCatalogSearch = useAppStore((s) => s.exitCatalogSearch);
-  const setCatalogProvider = useAppStore((s) => s.setCatalogProvider);
-  const setCatalogQuery = useAppStore((s) => s.setCatalogQuery);
-  const setCatalogFilters = useAppStore((s) => s.setCatalogFilters);
-  const setCatalogPage = useAppStore((s) => s.setCatalogPage);
-  const openCatalogEntity = useAppStore((s) => s.openCatalogEntity);
-  const closeCatalogDrawer = useAppStore((s) => s.closeCatalogDrawer);
+// Strip the `f_<facet>` filter keys from a search object, leaving the rest.
+const withoutFacets = (search: CatalogSearch): CatalogSearch =>
+  Object.fromEntries(Object.entries(search).filter(([k]) => !k.startsWith('f_'))) as CatalogSearch;
+
+export const CatalogSearchPage = () => {
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
+  const { loadFromCatalog } = useAppShell();
+
+  const providers = listProviders();
+  // Provider comes from the URL; absent, fall back to the remembered/first one
+  // without forcing it into the URL (a bare /catalog shared elsewhere then uses
+  // the recipient's own default).
+  const providerId = search.provider ?? getLastProviderId() ?? providers[0]?.id ?? '';
+  const provider = providers.find((p) => p.id === providerId) ?? providers[0];
+  const query = search.q ?? '';
+  const page = search.page ?? 1;
+  const filters = useMemo(() => filtersFromSearch(search), [search]);
+  const selectedEntityId = search.entity ?? null;
+
+  const setQuery = (next: string) => {
+    navigate({ search: (prev) => ({ ...prev, q: next || undefined, page: undefined }) });
+  };
+  const setFilters = (next: Record<string, string[]>) => {
+    navigate({ search: (prev) => ({ ...withoutFacets(prev), ...filtersToSearch(next), page: undefined }) });
+  };
+  const setPage = (next: number) => {
+    navigate({ search: (prev) => ({ ...prev, page: next > 1 ? next : undefined }) });
+  };
+  const openEntity = (entityId: string) => {
+    navigate({ search: (prev) => ({ ...prev, entity: entityId }) });
+  };
+  const closeDrawer = () => {
+    navigate({ search: (prev) => ({ ...prev, entity: undefined }) });
+  };
+  const goBack = () => {
+    navigate({ to: '/' });
+  };
+  const handleProviderChange = (next: string | null) => {
+    if (next === null || next === providerId) {
+      return;
+    }
+    setLastProviderId(next);
+    // Switching catalog resets filters/page/open-entity (they belong to the old
+    // provider); the free-text query carries over.
+    navigate({ search: (prev) => ({ provider: next, ...(prev.q ? { q: prev.q } : {}) }) });
+  };
 
   // Loading a catalog file first checks the item's RO-Crate for an existing transcript
   // and, if present, prompts the user to bring it across (see useTranscriptImport).
-  const { dialog: importDialog, requestLoad, resolveDialog } = useTranscriptImport({ onLoadCatalog });
-
-  const providers = listProviders();
-  const provider = providers.find((p) => p.id === providerId) ?? providers[0];
+  const {
+    dialog: importDialog,
+    requestLoad,
+    resolveDialog,
+  } = useTranscriptImport({
+    onLoadCatalog: loadFromCatalog,
+    providerId,
+    entityId: selectedEntityId,
+    onClose: closeDrawer,
+  });
 
   const request = useMemo<SearchRequest>(
     () => ({
@@ -57,28 +100,20 @@ export const CatalogSearchPage = ({ onLoadCatalog }: CatalogSearchPageProps) => 
     [query, filters, page],
   );
 
-  const search = useSearchEntities(provider?.id ?? '', request, {
+  const searchResult = useSearchEntities(provider?.id ?? '', request, {
     enabled: Boolean(provider) && (query.length > 0 || Object.keys(filters).length > 0),
   });
-  const entities = search.data?.entities ?? [];
-  const total = search.data?.total ?? 0;
-  const searchTime = search.data?.searchTime ?? 0;
-  const facets = search.data?.facets;
-
-  const handleProviderChange = (next: string | null) => {
-    if (next === null || next === providerId) {
-      return;
-    }
-    setCatalogProvider(next);
-    setLastProviderId(next);
-  };
+  const entities = searchResult.data?.entities ?? [];
+  const total = searchResult.data?.total ?? 0;
+  const searchTime = searchResult.data?.searchTime ?? 0;
+  const facets = searchResult.data?.facets;
 
   // Defensive: the catalog entry points are hidden when no providers are
   // configured, so this is normally unreachable — but never render with no provider.
   if (!provider) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={exitCatalogSearch}>
+        <Button variant="ghost" size="sm" onClick={goBack}>
           <ArrowLeftIcon className="h-4 w-4" />
           Back
         </Button>
@@ -91,7 +126,7 @@ export const CatalogSearchPage = ({ onLoadCatalog }: CatalogSearchPageProps) => 
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={exitCatalogSearch}>
+          <Button variant="ghost" size="sm" onClick={goBack}>
             <ArrowLeftIcon className="h-4 w-4" />
             Back
           </Button>
@@ -114,10 +149,10 @@ export const CatalogSearchPage = ({ onLoadCatalog }: CatalogSearchPageProps) => 
         </div>
       </div>
 
-      <SearchInput initialValue={query} onQueryChange={setCatalogQuery} />
+      <SearchInput initialValue={query} onQueryChange={setQuery} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
-        <FacetSidebar facets={facets} selectedFilters={filters} onChange={setCatalogFilters} loading={search.isFetching} />
+        <FacetSidebar facets={facets} selectedFilters={filters} onChange={setFilters} loading={searchResult.isFetching} />
         <div className="min-w-0 space-y-4">
           {!query && Object.keys(filters).length === 0 ? (
             <div className="rounded-lg border border-border p-8 text-center text-muted-foreground text-sm">
@@ -127,19 +162,19 @@ export const CatalogSearchPage = ({ onLoadCatalog }: CatalogSearchPageProps) => 
             <>
               <ResultsList
                 entities={entities}
-                loading={search.isFetching}
-                error={search.error}
+                loading={searchResult.isFetching}
+                error={searchResult.error}
                 total={total}
                 searchTime={searchTime}
-                onSelect={openCatalogEntity}
+                onSelect={openEntity}
               />
-              <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setCatalogPage} />
+              <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
             </>
           )}
         </div>
       </div>
 
-      <EntityDrawer providerId={providerId} entityId={selectedEntityId} open={drawerOpen} onClose={closeCatalogDrawer} onLoadFile={requestLoad} />
+      <EntityDrawer providerId={provider.id} entityId={selectedEntityId} open={selectedEntityId !== null} onClose={closeDrawer} onLoadFile={requestLoad} />
 
       <ImportTranscriptDialog
         open={importDialog !== null}

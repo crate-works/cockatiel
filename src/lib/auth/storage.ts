@@ -12,6 +12,7 @@ const userKey = (providerId: string) => `cockatiel:auth:user:${providerId}`;
 const VERIFIER_KEY = 'cockatiel:auth:pkce-verifier';
 const STATE_KEY = 'cockatiel:auth:pkce-state';
 const PROVIDER_KEY = 'cockatiel:auth:pkce-provider';
+const RETURN_KEY = 'cockatiel:auth:pkce-return-to';
 
 const safeSession = (): Storage | null => {
   try {
@@ -67,23 +68,26 @@ export const saveUser = (providerId: string, user: UserClaims): void => {
   safeSession()?.setItem(userKey(providerId), JSON.stringify(user));
 };
 
-export const savePending = (providerId: string, verifier: string, state: string): void => {
+export const savePending = (providerId: string, verifier: string, state: string, returnTo: string): void => {
   const s = safeLocal();
   s?.setItem(VERIFIER_KEY, verifier);
   s?.setItem(STATE_KEY, state);
   s?.setItem(PROVIDER_KEY, providerId);
+  s?.setItem(RETURN_KEY, returnTo);
 };
 
-export const consumePending = (): { providerId: string; verifier: string; state: string } | null => {
+export const consumePending = (): { providerId: string; verifier: string; state: string; returnTo: string | null } | null => {
   const s = safeLocal();
   const verifier = s?.getItem(VERIFIER_KEY);
   const state = s?.getItem(STATE_KEY);
   const providerId = s?.getItem(PROVIDER_KEY);
+  const returnTo = s?.getItem(RETURN_KEY) ?? null;
   s?.removeItem(VERIFIER_KEY);
   s?.removeItem(STATE_KEY);
   s?.removeItem(PROVIDER_KEY);
+  s?.removeItem(RETURN_KEY);
   if (!verifier || !state || !providerId) {
     return null;
   }
-  return { providerId, verifier, state };
+  return { providerId, verifier, state, returnTo };
 };

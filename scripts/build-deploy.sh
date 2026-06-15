@@ -27,7 +27,8 @@ echo "==> Assembling ${DEPLOY_DIR}/"
 rm -rf "${DEPLOY_DIR}"
 mkdir -p "${DEPLOY_DIR}/app"
 # Site at the root, app under /app/ (the app dist already carries config.json,
-# its 404.html, wasm/, and the auth/callback shell).
+# its 404.html SPA fallback, and wasm/). /auth/callback is served via the
+# 404.html fallback — no materialised directory, so no trailing-slash redirect.
 cp -R website/dist/. "${DEPLOY_DIR}/"
 cp -R dist/. "${DEPLOY_DIR}/app/"
 echo "${DOMAIN}" > "${DEPLOY_DIR}/CNAME"

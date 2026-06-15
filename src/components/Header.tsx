@@ -1,3 +1,4 @@
+import { useMatchRoute, useNavigate } from '@tanstack/react-router';
 import { ArrowLeftIcon, MoreHorizontalIcon, Trash2Icon } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { SourceBadge } from '@/components/catalog/SourceBadge';
@@ -17,25 +18,30 @@ import { useAppStore } from '@/lib/store';
 
 export const Header = () => {
   const mediaFileName = useAppStore((s) => s.mediaFileName);
-  const appPhase = useAppStore((s) => s.appPhase);
+  const editorStatus = useAppStore((s) => s.editorStatus);
   const title = useAppStore((s) => s.title);
   const fingerprint = useAppStore((s) => s.fingerprint);
   const catalogSource = useAppStore((s) => s.catalogSource);
   const setTitle = useAppStore((s) => s.setTitle);
+  const navigate = useNavigate();
+  const matchRoute = useMatchRoute();
 
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const handleBackToSessions = useCallback(() => {
     useAppStore.getState().reset();
-  }, []);
+    void navigate({ to: '/' });
+  }, [navigate]);
 
   const handleConfirmDelete = useCallback(async () => {
     await useAppStore.getState().discardSession(fingerprint);
-  }, [fingerprint]);
+    void navigate({ to: '/' });
+  }, [fingerprint, navigate]);
 
-  const showBack = appPhase !== 'workbench';
-  const showEditor = appPhase === 'processing' || appPhase === 'ready';
-  const canDelete = appPhase === 'ready' && fingerprint !== '';
+  // "Sessions" returns to the landing page; hide it when already there.
+  const showBack = !matchRoute({ to: '/' });
+  const showEditor = editorStatus === 'processing' || editorStatus === 'ready';
+  const canDelete = editorStatus === 'ready' && fingerprint !== '';
 
   return (
     <header className="sticky top-0 z-40 h-12 border-b border-border bg-card/90 backdrop-blur">

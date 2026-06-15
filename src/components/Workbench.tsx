@@ -1,3 +1,4 @@
+import { useNavigate } from '@tanstack/react-router';
 import { LibraryIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -88,7 +89,7 @@ const SourceHostBadge = ({ url }: { url: string }) => {
 export const Workbench = ({ onFileSelected, onLoadUrl, onLoadCatalog }: WorkbenchProps) => {
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
-  const enterCatalogSearch = useAppStore((s) => s.enterCatalogSearch);
+  const navigate = useNavigate();
   // No catalog providers configured ⇒ hide the catalog entry points.
   const hasCatalogs = listProviders().length > 0;
 
@@ -150,11 +151,13 @@ export const Workbench = ({ onFileSelected, onLoadUrl, onLoadCatalog }: Workbenc
         onLoadUrl(session.sourceUrl);
         return;
       }
-      // Local-file session with a stale handle — fall back to manual re-drop.
+      // Local-file session with a stale handle — hydrate the transcript and route
+      // to its session page, which offers the re-drop affordance.
       useAppStore.getState().hydrateFromStoredSession(session);
-      useAppStore.getState().setAppPhase('upload');
+      useAppStore.getState().setEditorStatus('ready');
+      void navigate({ to: '/session/$fingerprint', params: { fingerprint } });
     },
-    [onFileSelected, onLoadCatalog, onLoadUrl, reload],
+    [navigate, onFileSelected, onLoadCatalog, onLoadUrl, reload],
   );
 
   if (sessions === null) {
@@ -174,7 +177,7 @@ export const Workbench = ({ onFileSelected, onLoadUrl, onLoadCatalog }: Workbenc
         <DropZone onFileSelected={onFileSelected} />
         {hasCatalogs && (
           <div className="mt-3 flex justify-center">
-            <Button variant="outline" size="sm" onClick={enterCatalogSearch}>
+            <Button variant="outline" size="sm" onClick={() => navigate({ to: '/catalog' })}>
               <LibraryIcon className="h-4 w-4" />
               Browse catalog
             </Button>
@@ -195,7 +198,7 @@ export const Workbench = ({ onFileSelected, onLoadUrl, onLoadCatalog }: Workbenc
       <DropBar onFileSelected={onFileSelected} />
       {hasCatalogs && (
         <div className="flex justify-center">
-          <Button variant="outline" size="sm" onClick={enterCatalogSearch}>
+          <Button variant="outline" size="sm" onClick={() => navigate({ to: '/catalog' })}>
             <LibraryIcon className="h-4 w-4" />
             Browse catalog
           </Button>

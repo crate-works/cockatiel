@@ -5,23 +5,34 @@ import type { Provider } from '@/lib/arocapi/types';
 import { consumePending, savePending } from './storage';
 import type { TokenSet, UserClaims } from './types';
 
-// Vite serves prod from a sub-path (e.g. `/cockatiel/` on GitHub Pages) but dev
-// from `/`. `import.meta.env.BASE_URL` resolves both at build time without an
-// env var, and both the redirect URI we send to the IdP and the callback-path
-// check in App.tsx need to honour it.
+// Vite serves prod from a sub-path (e.g. `/app/` on GitHub Pages) but dev from
+// `/`. `import.meta.env.BASE_URL` resolves both at build time without an env var.
+// The redirect URI we send to the IdP must honour it; the router (basepath) owns
+// in-app routing, so we no longer detect the callback path by hand.
 const baseUrl = import.meta.env.BASE_URL;
 export const AUTH_CALLBACK_PATH = `${baseUrl.replace(/\/$/, '')}/auth/callback`;
-export const HOME_PATH = baseUrl;
-
-// Does a pathname point at the OIDC callback? GitHub Pages and nginx both
-// 301-redirect a directory request (…/auth/callback) to add a trailing slash
-// (…/auth/callback/) before serving its index.html, so we match either form —
-// otherwise the redirected callback is never detected and sign-in silently
-// fails on the real deploys (it only "works" on the dev server, which serves
-// the SPA fallback without redirecting).
-export const isAuthCallbackPath = (pathname: string): boolean => pathname.replace(/\/$/, '') === AUTH_CALLBACK_PATH;
 
 const oidcRedirectUri = (): string => `${window.location.origin}${AUTH_CALLBACK_PATH}`;
+
+// Where to send the user back to after sign-in, as a router-relative path
+// (basepath stripped — the router re-applies it on navigate). Validate it as a
+// single-slash relative path before trusting it: trusting an absolute or
+// protocol-relative URL here would be an open-redirect in the OAuth flow. Falls
+// back to the app root when absent or suspicious.
+export const safeReturnTo = (raw: string | null | undefined): string => {
+  if (!raw?.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) {
+    return '/';
+  }
+  return raw;
+};
+
+// The in-app URL to return to after sign-in: current path + query, with the
+// basepath stripped to its router-relative form.
+const currentReturnTo = (): string => {
+  const { pathname, search } = window.location;
+  const rel = pathname.startsWith(baseUrl) ? `/${pathname.slice(baseUrl.length)}` : pathname;
+  return `${rel}${search}`;
+};
 
 // Cache discovered AuthorizationServer per issuer (each Provider may target a
 // different IdP).
@@ -60,7 +71,10 @@ export const beginSignIn = async (providerId: string): Promise<void> => {
   const verifier = oauth.generateRandomCodeVerifier();
   const challenge = await oauth.calculatePKCECodeChallenge(verifier);
   const state = oauth.generateRandomState();
-  savePending(providerId, verifier, state);
+  // Stash where to return to so the callback can restore the catalog/session URL
+  // the user signed in from. Rides the same localStorage record as the PKCE
+  // state, which is proven to survive the cross-origin OAuth round-trip.
+  savePending(providerId, verifier, state, currentReturnTo());
 
   if (!server.authorization_endpoint) {
     throw new Error('OIDC discovery returned no authorization_endpoint.');
@@ -108,6 +122,8 @@ export interface CallbackResult {
   providerId: string;
   tokens: TokenSet;
   user: UserClaims | null;
+  // Validated router-relative path to return to after sign-in.
+  returnTo: string;
 }
 
 // Dedupe completion attempts (React StrictMode double-mounts effects in dev).
@@ -151,5 +167,5 @@ const doCompleteSignIn = async (callbackUrl: URL): Promise<CallbackResult> => {
     ...(typeof result.refresh_token === 'string' ? { refreshToken: result.refresh_token } : {}),
   };
   const user = tokens.idToken ? decodeIdTokenClaims(tokens.idToken) : null;
-  return { providerId: pending.providerId, tokens, user };
+  return { providerId: pending.providerId, tokens, user, returnTo: safeReturnTo(pending.returnTo) };
 };

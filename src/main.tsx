@@ -1,4 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
@@ -12,18 +13,18 @@ if (!root) {
   throw new Error('Root element not found');
 }
 
-// Load the runtime provider config (config.json) before importing the app. The
+// Load the runtime provider config (config.json) before importing the router. The
 // dynamic import guarantees the stores — notably auth/store.ts, which hydrates
 // sessions per provider at creation time — initialise only after providers exist.
 const bootstrap = async () => {
   await loadProviders();
-  const { default: App } = await import('./App.tsx');
+  const { router } = await import('./router');
   const queryClient = createQueryClient();
 
   createRoot(root).render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <App />
+        <RouterProvider router={router} />
       </QueryClientProvider>
     </StrictMode>,
   );

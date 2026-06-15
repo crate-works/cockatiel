@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CatalogSource, ProviderId } from './arocapi';
+import type { CatalogSource } from './arocapi';
 import { DEFAULT_VAD_CONFIG, MAX_SPEAKERS } from './constants';
 import { deleteSession } from './persistence/storage';
 import type { StoredSession } from './persistence/types';
@@ -8,31 +8,13 @@ import { SegmentInspect, SegmentOps } from './segment-ops';
 import { titleFromFileName } from './utils';
 import type { VadConfig, VadSegment } from './vad';
 
-type AppPhase = 'workbench' | 'upload' | 'catalog-search' | 'processing' | 'ready';
-
-interface CatalogSearchSlice {
-  providerId: ProviderId;
-  query: string;
-  filters: Record<string, string[]>;
-  page: number;
-  selectedEntityId: string | null;
-  drawerOpen: boolean;
-}
-
-const initialCatalogSearch: CatalogSearchSlice = {
-  // Set to the remembered/first provider by an effect in App once the runtime
-  // config has loaded; CatalogSearchPage falls back to providers[0] meanwhile.
-  providerId: '',
-  query: '',
-  filters: {},
-  page: 1,
-  selectedEntityId: null,
-  drawerOpen: false,
-};
+// Internal phase of the editor only — navigation is owned by the router, so the
+// former 'workbench' / 'upload' / 'catalog-search' phases are now routes. 'idle'
+// means no editor session is active (we're on the landing/catalog routes).
+type EditorStatus = 'idle' | 'processing' | 'ready';
 
 interface AppState {
-  appPhase: AppPhase;
-  catalogSearch: CatalogSearchSlice;
+  editorStatus: EditorStatus;
   catalogSource: CatalogSource | null;
   defaultSpeaker: number;
   fileHandle: FileSystemFileHandle | null;
@@ -65,20 +47,12 @@ interface AppState {
   selectAdjacentSegment: (direction: 'prev' | 'next') => void;
   setLoopOnSelect: (value: boolean) => void;
   splitSegment: (id: string, atTime: number) => void;
-  setAppPhase: (phase: AppPhase) => void;
+  setEditorStatus: (status: EditorStatus) => void;
   setDefaultSpeaker: (index: number) => void;
   setFileHandle: (handle: FileSystemFileHandle | null) => void;
   setFingerprint: (fingerprint: string) => void;
   setMediaFile: (name: string, duration: number) => void;
   setProgress: (fraction: number) => void;
-  setCatalogProvider: (providerId: ProviderId) => void;
-  setCatalogQuery: (query: string) => void;
-  setCatalogFilters: (filters: Record<string, string[]>) => void;
-  setCatalogPage: (page: number) => void;
-  openCatalogEntity: (entityId: string) => void;
-  closeCatalogDrawer: () => void;
-  enterCatalogSearch: () => void;
-  exitCatalogSearch: () => void;
   setCatalogSource: (source: CatalogSource | null) => void;
   setSourceUrl: (url: string | null) => void;
   setSpeakerCount: (count: number) => void;
@@ -98,8 +72,7 @@ const makeCtx = (state: AppState): SegmentCtx => ({
 });
 
 const initialState = {
-  appPhase: 'workbench' as AppPhase,
-  catalogSearch: { ...initialCatalogSearch },
+  editorStatus: 'idle' as EditorStatus,
   catalogSource: null as CatalogSource | null,
   defaultSpeaker: 0,
   fileHandle: null as FileSystemFileHandle | null,
@@ -121,7 +94,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   ...initialState,
 
   setMediaFile: (name, duration) => set({ mediaFileName: name, mediaDuration: duration }),
-  setAppPhase: (phase) => set({ appPhase: phase }),
+  setEditorStatus: (status) => set({ editorStatus: status }),
   setFileHandle: (fileHandle) => set({ fileHandle }),
   setFingerprint: (fingerprint) => set({ fingerprint }),
   setStatus: (message) => set({ statusMessage: message }),
@@ -129,40 +102,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSourceUrl: (url) => set({ sourceUrl: url }),
   setCatalogSource: (source) => set({ catalogSource: source }),
   setTitle: (title) => set({ title }),
-
-  setCatalogProvider: (providerId) =>
-    set((state) => ({
-      catalogSearch: { ...state.catalogSearch, providerId, page: 1, filters: {} },
-    })),
-
-  setCatalogQuery: (query) =>
-    set((state) => ({
-      catalogSearch: { ...state.catalogSearch, query, page: 1 },
-    })),
-
-  setCatalogFilters: (filters) =>
-    set((state) => ({
-      catalogSearch: { ...state.catalogSearch, filters, page: 1 },
-    })),
-
-  setCatalogPage: (page) =>
-    set((state) => ({
-      catalogSearch: { ...state.catalogSearch, page },
-    })),
-
-  openCatalogEntity: (entityId) =>
-    set((state) => ({
-      catalogSearch: { ...state.catalogSearch, selectedEntityId: entityId, drawerOpen: true },
-    })),
-
-  closeCatalogDrawer: () =>
-    set((state) => ({
-      catalogSearch: { ...state.catalogSearch, drawerOpen: false, selectedEntityId: null },
-    })),
-
-  enterCatalogSearch: () => set({ appPhase: 'catalog-search' }),
-
-  exitCatalogSearch: () => set({ appPhase: 'upload' }),
 
   hydrateFromStoredSession: (session) =>
     set({
@@ -195,7 +134,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       start: seg.start,
       value: '',
     }));
-    set({ appPhase: 'ready', processingProgress: 0, segments, statusMessage: '' });
+    set({ editorStatus: 'ready', processingProgress: 0, segments, statusMessage: '' });
   },
 
   // Like loadSegments, but the segments already carry their transcription text and
@@ -204,7 +143,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // named correctly.
   loadImportedSegments: (segments, speakerNames) => {
     const names = speakerNames.length > 0 ? speakerNames.slice(0, MAX_SPEAKERS) : ['Speaker 1'];
-    set({ appPhase: 'ready', defaultSpeaker: 0, processingProgress: 0, segments, speakerNames: names, statusMessage: '' });
+    set({ editorStatus: 'ready', defaultSpeaker: 0, processingProgress: 0, segments, speakerNames: names, statusMessage: '' });
   },
 
   updateSegmentBounds: (id, start, end) => set((state) => SegmentOps.rebound(state, id, start, end, makeCtx(state))),
