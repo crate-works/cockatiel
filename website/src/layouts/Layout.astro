@@ -30,6 +30,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '');
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <title>{title}</title>
+    <slot name="head" />
   </head>
   <body class="min-h-screen flex flex-col">
     <header class="border-b border-border bg-card/70 backdrop-blur">

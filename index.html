@@ -6,6 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>cockatiel</title>
     <script>
+      // SPA deep-link restore. GitHub Pages can't serve client-side routes under
+      // /app/ as files, so the root 404.html (the marketing site) encodes the
+      // requested path into `?/...` and redirects here. Decode it back into the
+      // real URL with replaceState before the router boots. A no-op for normal
+      // loads (/app/) and the OAuth callback (?code=... — never starts with `/`).
+      ((l) => {
+        if (l.search[1] === '/') {
+          const decoded = l.search
+            .slice(1)
+            .split('&')
+            .map((s) => s.replace(/~and~/g, '&'))
+            .join('?');
+          window.history.replaceState(null, '', `${l.pathname.slice(0, -1)}${decoded}${l.hash}`);
+        }
+      })(window.location);
+    </script>
+    <script>
       // Cross-origin isolation is required for SharedArrayBuffer / the VAD worker.
       // The dev server (vite.config.ts) and the self-host nginx image send real
       // COOP/COEP headers, so the page is already isolated and the shim is skipped.
