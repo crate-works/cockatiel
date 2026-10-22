@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Download prebuilt sherpa-onnx WASM VAD files from SourceForge.
+# Download prebuilt sherpa-onnx WASM VAD files from GitHub releases.
 #
 # Usage:
 #   ./scripts/download-wasm-vad.sh [version]
@@ -16,7 +16,7 @@ VERSION="${1:-$PINNED_VERSION}"
 
 TARBALL="sherpa-onnx-wasm-simd-v${VERSION}-vad.tar.bz2"
 EXTRACT_DIR="sherpa-onnx-wasm-simd-v${VERSION}-vad"
-URL="https://sourceforge.net/projects/sherpa-onnx.mirror/files/v${VERSION}/${TARBALL}/download"
+URL="https://github.com/k2-fsa/sherpa-onnx/releases/download/v${VERSION}/${TARBALL}"
 DEST_DIR="$(cd "$(dirname "$0")/.." && pwd)/public/wasm/vad"
 
 echo "Downloading sherpa-onnx WASM VAD v${VERSION}..."
@@ -28,7 +28,7 @@ WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
 
 cd "$WORK_DIR"
-curl -sL "$URL" -o "$TARBALL"
+curl -fsSL "$URL" -o "$TARBALL"
 
 echo "Extracting..."
 tar xjf "$TARBALL"

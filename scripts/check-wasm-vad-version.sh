@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Verify that the sherpa-onnx WASM VAD version pinned in download-wasm-vad.sh
-# resolves to a real tarball on SourceForge. Hard-fails on HTTP 404,
+# resolves to a real tarball on GitHub releases. Hard-fails on HTTP 404,
 # soft-skips on network errors so offline commits aren't blocked.
 
 set -euo pipefail
@@ -20,7 +20,7 @@ if [[ -z "${VERSION:-}" ]]; then
   exit 1
 fi
 
-URL="https://sourceforge.net/projects/sherpa-onnx.mirror/files/v${VERSION}/sherpa-onnx-wasm-simd-v${VERSION}-vad.tar.bz2/download"
+URL="https://github.com/k2-fsa/sherpa-onnx/releases/download/v${VERSION}/sherpa-onnx-wasm-simd-v${VERSION}-vad.tar.bz2"
 
 echo "Checking sherpa-onnx WASM VAD v${VERSION}..."
 
@@ -28,7 +28,7 @@ CURL_EXIT=0
 HTTP_CODE=$(curl --silent --head --location --output /dev/null --write-out "%{http_code}" --max-time 10 "$URL") || CURL_EXIT=$?
 
 if [[ $CURL_EXIT -ne 0 ]]; then
-  echo "warning: could not reach SourceForge (curl exit ${CURL_EXIT}); skipping version check" >&2
+  echo "warning: could not reach GitHub (curl exit ${CURL_EXIT}); skipping version check" >&2
   exit 0
 fi
 
