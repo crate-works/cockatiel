@@ -24,7 +24,8 @@ const PAGE_SIZE = 50;
 // values silently produce zero results; inspect a live response in devtools to confirm.
 const FIXED_FILTERS: Record<string, string[]> = {
   entity_type: ['Item'],
-  mediaType: ['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp3', 'audio/flac', 'audio/ogg', 'audio/mp4'],
+  // Nabu's /capabilities declares the media type filter as encodingFormat, not mediaType.
+  encodingFormat: ['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp3', 'audio/flac', 'audio/ogg', 'audio/mp4'],
 };
 
 const routeApi = getRouteApi('/catalog');
