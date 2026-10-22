@@ -83,13 +83,13 @@ export const getEntity = (provider: Provider, id: string, opts: ClientOptions): 
   requestJson<Entity>(provider.id, joinUrl(provider.baseUrl, `/entity/${encodeURIComponent(id)}`), { headers: { Accept: 'application/json' } }, opts.signal);
 
 // Fetches the full RO-Crate (`@context` + `@graph`) for an entity via the documented
-// Oni endpoint `GET /entity/:id/rocrate`. Unlike `/entity/:id` (a normalised summary),
+// Oni endpoint `GET /entity/:id/metadata`. Unlike `/entity/:id` (a normalised summary),
 // this returns the raw ro-crate-metadata.json graph, which is the only place the
 // media↔annotation links (`hasAnnotation` / `annotationOf`) are exposed.
 export const getEntityCrate = (provider: Provider, id: string, opts: ClientOptions): Promise<RoCrate> =>
   requestJson<RoCrate>(
     provider.id,
-    joinUrl(provider.baseUrl, `/entity/${encodeURIComponent(id)}/rocrate`),
+    joinUrl(provider.baseUrl, `/entity/${encodeURIComponent(id)}/metadata`),
     { headers: { Accept: 'application/json' } },
     opts.signal,
   );

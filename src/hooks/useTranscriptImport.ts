@@ -83,6 +83,7 @@ export const useTranscriptImport = ({ onLoadCatalog, providerId, entityId, onClo
           return;
         }
         console.warn('Could not check the catalog for an existing transcript:', error);
+        toast.error(`Couldn't check the catalog for an existing transcript: ${formatArocapiError(error)} Segmenting the audio instead.`);
         onClose();
         void onLoadCatalog(source);
       }

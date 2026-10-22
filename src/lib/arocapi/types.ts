@@ -118,7 +118,7 @@ export interface CatalogSource {
   fileId: string;
 }
 
-// Raw RO-Crate JSON-LD as returned by GET /entity/:id/rocrate. We only model the
+// Raw RO-Crate JSON-LD as returned by GET /entity/:id/metadata. We only model the
 // minimum we read (`@id`, `@type`); every other property (hasAnnotation,
 // annotationOf, encodingFormat, filename, …) is reached through index-signature
 // access in the rocrate helpers, because the LDaCA/PARADISEC profile carries far
