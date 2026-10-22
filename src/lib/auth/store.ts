@@ -2,7 +2,7 @@ import { create } from 'zustand';
 // Direct path import — avoids pulling the arocapi barrel which would transitively
 // re-import this store via lib/arocapi/client.ts and create a circular init.
 import { listProviders } from '@/lib/arocapi/providers';
-import { clearTokens, loadTokens, loadUser, saveTokens, saveUser } from './storage';
+import { AUTH_KEY_PREFIX, clearTokens, loadTokens, loadUser, saveTokens, saveUser } from './storage';
 import type { ProviderSession, TokenSet, UserClaims } from './types';
 
 interface AuthStore {
@@ -11,7 +11,7 @@ interface AuthStore {
   signOut: (providerId: string) => void;
 }
 
-// On boot, hydrate sessions from sessionStorage for every known provider that
+// On boot, hydrate sessions from localStorage for every known provider that
 // has stored tokens. Expired tokens are discarded so the UI shows them as
 // signed out rather than serving a stale Bearer header.
 const initialSessions = (): Record<string, ProviderSession | null> => {
@@ -43,6 +43,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set((state) => ({ sessions: { ...state.sessions, [providerId]: null } }));
   },
 }));
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === null || event.key.startsWith(AUTH_KEY_PREFIX)) {
+      useAuthStore.setState({ sessions: initialSessions() });
+    }
+  });
+}
 
 // Module-level getter used by lib/arocapi/client.ts so request building
 // doesn't need to thread auth through every call site. Returns the access

@@ -1,26 +1,19 @@
 import type { TokenSet, UserClaims } from './types';
 
-// Per-provider session keys. Tokens live in sessionStorage (dies with the tab,
-// limits XSS exposure). PKCE state lives in localStorage because Vite serves
-// with COOP:same-origin (required for SharedArrayBuffer / VAD), which can
-// sever the browsing context across the cross-origin OAuth round-trip and
-// drop sessionStorage on the way back.
+// Tokens live in localStorage so a sign-in is shared across tabs. PKCE state
+// can't use sessionStorage either: Vite serves with COOP:same-origin (required
+// for SharedArrayBuffer / VAD), which can sever the browsing context across the
+// cross-origin OAuth round-trip and drop sessionStorage on the way back.
 
-const tokenKey = (providerId: string) => `cockatiel:auth:tokens:${providerId}`;
-const userKey = (providerId: string) => `cockatiel:auth:user:${providerId}`;
+export const AUTH_KEY_PREFIX = 'cockatiel:auth:';
+
+const tokenKey = (providerId: string) => `${AUTH_KEY_PREFIX}tokens:${providerId}`;
+const userKey = (providerId: string) => `${AUTH_KEY_PREFIX}user:${providerId}`;
 
 const VERIFIER_KEY = 'cockatiel:auth:pkce-verifier';
 const STATE_KEY = 'cockatiel:auth:pkce-state';
 const PROVIDER_KEY = 'cockatiel:auth:pkce-provider';
 const RETURN_KEY = 'cockatiel:auth:pkce-return-to';
-
-const safeSession = (): Storage | null => {
-  try {
-    return typeof window === 'undefined' ? null : window.sessionStorage;
-  } catch {
-    return null;
-  }
-};
 
 const safeLocal = (): Storage | null => {
   try {
@@ -31,7 +24,7 @@ const safeLocal = (): Storage | null => {
 };
 
 export const loadTokens = (providerId: string): TokenSet | null => {
-  const raw = safeSession()?.getItem(tokenKey(providerId));
+  const raw = safeLocal()?.getItem(tokenKey(providerId));
   if (!raw) {
     return null;
   }
@@ -43,17 +36,17 @@ export const loadTokens = (providerId: string): TokenSet | null => {
 };
 
 export const saveTokens = (providerId: string, tokens: TokenSet): void => {
-  safeSession()?.setItem(tokenKey(providerId), JSON.stringify(tokens));
+  safeLocal()?.setItem(tokenKey(providerId), JSON.stringify(tokens));
 };
 
 export const clearTokens = (providerId: string): void => {
-  const s = safeSession();
+  const s = safeLocal();
   s?.removeItem(tokenKey(providerId));
   s?.removeItem(userKey(providerId));
 };
 
 export const loadUser = (providerId: string): UserClaims | null => {
-  const raw = safeSession()?.getItem(userKey(providerId));
+  const raw = safeLocal()?.getItem(userKey(providerId));
   if (!raw) {
     return null;
   }
@@ -65,7 +58,7 @@ export const loadUser = (providerId: string): UserClaims | null => {
 };
 
 export const saveUser = (providerId: string, user: UserClaims): void => {
-  safeSession()?.setItem(userKey(providerId), JSON.stringify(user));
+  safeLocal()?.setItem(userKey(providerId), JSON.stringify(user));
 };
 
 export const savePending = (providerId: string, verifier: string, state: string, returnTo: string): void => {
