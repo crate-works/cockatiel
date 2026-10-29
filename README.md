@@ -2,6 +2,10 @@
 
 Local-first audio annotation tool with WebAssembly VAD segmentation and multi-format export (EAF, SRT, TextGrid, CSV).
 
+**Use it now at [cockatiel.crate-works.org](https://cockatiel.crate-works.org/)** — nothing to
+install; open the site and drop an audio file to begin. The [Development](#development)
+section below is only needed if you want to work on Cockatiel itself.
+
 ## Features
 
 - **Automatic segmentation** — voice activity detection via Silero VAD (WebAssembly) or energy-based fallback
@@ -12,23 +16,13 @@ Local-first audio annotation tool with WebAssembly VAD segmentation and multi-fo
 - **Multi-format export** — EAF (ELAN), SRT, TextGrid (Praat), CSV, and plain text
 - **Privacy first** — all processing runs locally in the browser; no audio leaves your device
 
-## Getting started
-
-```bash
-pnpm install
-pnpm run download:wasm   # fetch Silero VAD WASM binary
-pnpm run dev
-```
-
-Open [http://localhost:5173](http://localhost:5173) and drop an audio file to begin.
-
 ## Loading audio from a URL
 
 Cockatiel can also load audio from a remote https URL. There are two ways to do it:
 
 - **Paste URL** — use the URL input below the drop zone and click **Load URL**.
 - **Deep link** — open cockatiel with an `?audio=` query parameter, e.g.
-  `https://your-cockatiel-host/?audio=https://catalog.example.org/path/to/audio.wav`.
+  `https://cockatiel.crate-works.org/?audio=https://catalog.example.org/path/to/audio.wav`.
   Cockatiel will fetch the file, show its size for confirmation, then segment it. The
   link stays in the URL bar so it can be shared.
 
@@ -53,6 +47,18 @@ The privacy-first claim still holds — audio goes from the source server straig
 to your browser; cockatiel has no backend that sees the bytes.
 
 Only `https:` URLs are accepted.
+
+## Development
+
+To run Cockatiel locally for development:
+
+```bash
+pnpm install
+pnpm run download:wasm   # fetch Silero VAD WASM binary
+pnpm run dev
+```
+
+Then open [http://localhost:5173](http://localhost:5173).
 
 ## Scripts
 
