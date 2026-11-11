@@ -9,7 +9,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends curl bzip2 ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable
+RUN npm install -g corepack && corepack enable
 
 # Copy the whole repo before installing: the `postinstall` script copies the
 # coi-serviceworker into public/, so the source tree must already be present.
