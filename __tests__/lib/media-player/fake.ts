@@ -1,5 +1,5 @@
 import { createEmitter } from '@/lib/media-player/emitter';
-import type { DesiredRegions, MediaPlayer, MediaPlayerEvent, MediaPlayerState, RegionSpec } from '@/lib/media-player/types';
+import type { DesiredRegions, LoadPhase, MediaPlayer, MediaPlayerEvent, MediaPlayerState, RegionSpec } from '@/lib/media-player/types';
 import { computeZoomWindow } from '@/lib/media-player/zoom-math';
 
 export interface FakeMediaPlayer extends MediaPlayer {
@@ -9,6 +9,7 @@ export interface FakeMediaPlayer extends MediaPlayer {
   regions(): ReadonlyMap<string, RegionSpec>;
   setClientXToTime(fn: (clientX: number) => number | null): void;
   simulateBoundsChanged(id: string, start: number, end: number): void;
+  simulateLoadPhase(phase: LoadPhase): void;
   simulateReady(duration: number): void;
   simulateTimeUpdate(time: number): void;
 }
@@ -30,6 +31,7 @@ export const createFakeMediaPlayer = (options: FakeMediaPlayerOptions = {}): Fak
     duration: 0,
     isPlaying: false,
     isReady: false,
+    loadPhase: 'idle',
     minPxPerSec: 0,
     pxPerSec: 0,
     viewport: { pixelsPerSecond: 0, visibleEndTime: 0, visibleStartTime: 0 },
@@ -48,6 +50,12 @@ export const createFakeMediaPlayer = (options: FakeMediaPlayerOptions = {}): Fak
     events.emit(event);
   };
 
+  const setLoadPhase = (phase: LoadPhase): void => {
+    state.loadPhase = phase;
+    state.isReady = phase === 'ready';
+    emit({ phase, type: 'load-phase' });
+  };
+
   const recomputeMinPxPerSec = (): void => {
     state.minPxPerSec = containerWidth > 0 && state.duration > 0 ? containerWidth / state.duration : 0;
   };
@@ -63,7 +71,7 @@ export const createFakeMediaPlayer = (options: FakeMediaPlayerOptions = {}): Fak
     getState: () => state,
     lastDesiredRegions: () => latest,
     loadBlob: async () => {
-      // No-op: tests drive `simulateReady` directly.
+      setLoadPhase('loading');
     },
     on: events.on,
     pause: () => {
@@ -92,11 +100,12 @@ export const createFakeMediaPlayer = (options: FakeMediaPlayerOptions = {}): Fak
     simulateBoundsChanged: (id, start, end) => {
       emit({ end, id, start, type: 'region-bounds-changed' });
     },
+    simulateLoadPhase: setLoadPhase,
     simulateReady: (duration) => {
       state.duration = duration;
-      state.isReady = true;
       recomputeMinPxPerSec();
       state.pxPerSec = state.minPxPerSec;
+      setLoadPhase('ready');
       emit({ duration, type: 'ready' });
     },
     simulateTimeUpdate: (time) => {

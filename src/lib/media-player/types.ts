@@ -8,11 +8,14 @@ export interface Viewport {
   visibleStartTime: number;
 }
 
+export type LoadPhase = 'idle' | 'loading' | 'decoding' | 'ready' | 'error';
+
 export interface MediaPlayerState {
   currentTime: number;
   duration: number;
   isPlaying: boolean;
   isReady: boolean;
+  loadPhase: LoadPhase;
   minPxPerSec: number;
   pxPerSec: number;
   viewport: Viewport;
@@ -20,6 +23,7 @@ export interface MediaPlayerState {
 
 export type MediaPlayerEvent =
   | { type: 'ready'; duration: number }
+  | { type: 'load-phase'; phase: LoadPhase }
   | { type: 'play' }
   | { type: 'pause' }
   | { type: 'timeupdate'; currentTime: number }

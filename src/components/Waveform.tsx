@@ -1,13 +1,47 @@
 import { Loader2Icon } from 'lucide-react';
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { isVideoFile } from '@/hooks/useAudioFilePicker';
 import { useMediaPlayerBridge } from '@/hooks/useMediaPlayerBridge';
 import { getSpeakerColour } from '@/lib/constants';
-import type { MediaPlayer, Viewport } from '@/lib/media-player/types';
+import type { LoadPhase, MediaPlayer, Viewport } from '@/lib/media-player/types';
 import { createWavesurferMediaPlayer } from '@/lib/media-player/wavesurfer';
-import { useAppStore } from '@/lib/store';
+import { type MediaDownload, selectHasRemoteSource, useAppStore } from '@/lib/store';
 import { getErrorMessage, isAbortError } from '@/lib/utils';
 import { SegmentContextMenu } from './SegmentContextMenu';
+
+interface Overlay {
+  busy: boolean;
+  label: string;
+}
+
+const LOADING: Overlay = { busy: true, label: 'Loading media…' };
+
+const describeNoFileOverlay = (download: MediaDownload, hasRemoteSource: boolean): Overlay => {
+  if (download.kind === 'downloading') {
+    const percent = download.fraction === undefined ? '' : ` ${Math.round(download.fraction * 100)}%`;
+    return { busy: true, label: `Downloading media…${percent}` };
+  }
+  if (download.kind === 'failed') {
+    return { busy: false, label: "Couldn't download media" };
+  }
+  if (!hasRemoteSource) {
+    return { busy: false, label: 'No media loaded' };
+  }
+  return LOADING;
+};
+
+const describePlayerOverlay = (phase: LoadPhase): Overlay | null => {
+  switch (phase) {
+    case 'ready':
+      return null;
+    case 'decoding':
+      return { busy: true, label: 'Decoding audio…' };
+    case 'error':
+      return { busy: false, label: "Couldn't load media" };
+    default:
+      return LOADING;
+  }
+};
 
 const MediaPlayerContext = createContext<MediaPlayer | null>(null);
 
@@ -25,7 +59,7 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [player, setPlayer] = useState<MediaPlayer | null>(null);
-  const [isReady, setIsReady] = useState(false);
+  const [loadPhase, setLoadPhase] = useState<LoadPhase>('idle');
 
   // A <video> element backs every load (it plays audio-only files just as well),
   // but we only reveal it when the file is actually video.
@@ -44,15 +78,11 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
     };
   }, []);
 
-  useEffect(() => {
-    if (!player) {
+  // Layout effect so the player's synchronous 'loading' replaces the previous file's phase before paint.
+  useLayoutEffect(() => {
+    if (!player || !audioFile) {
       return;
     }
-    if (!audioFile) {
-      setIsReady(false);
-      return;
-    }
-    setIsReady(false);
     player.loadBlob(audioFile).catch((err: unknown) => {
       if (isAbortError(err)) {
         return;
@@ -68,18 +98,18 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
 
   useEffect(() => {
     if (!player) {
-      setIsReady(false);
+      setLoadPhase('idle');
       return;
     }
     const snapshot = player.getState();
-    setIsReady(snapshot.isReady);
+    setLoadPhase(snapshot.loadPhase);
     if (snapshot.viewport.pixelsPerSecond > 0) {
       onViewportChangeRef.current?.(snapshot.viewport);
     }
     return player.on((event) => {
       switch (event.type) {
-        case 'ready':
-          setIsReady(true);
+        case 'load-phase':
+          setLoadPhase(event.phase);
           break;
         case 'viewport':
           onViewportChangeRef.current?.(event.viewport);
@@ -89,6 +119,9 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
   }, [player]);
 
   const { getClickContext } = useMediaPlayerBridge(player);
+  const mediaDownload = useAppStore((s) => s.mediaDownload);
+  const hasRemoteSource = useAppStore(selectHasRemoteSource);
+  const overlay = audioFile ? describePlayerOverlay(loadPhase) : describeNoFileOverlay(mediaDownload, hasRemoteSource);
 
   return (
     <MediaPlayerContext.Provider value={player}>
@@ -103,10 +136,10 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
           <SegmentContextMenu getClickContext={getClickContext} className="min-w-0 flex-1">
             <div className="relative">
               <div ref={containerRef} className="min-h-40 overflow-hidden rounded-r-lg border border-border bg-waveform-bg" />
-              {!isReady && (
+              {overlay && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 text-muted-foreground">
-                  <Loader2Icon className="size-5 animate-spin" />
-                  <span className="font-mono text-xs uppercase tracking-widest">Loading media…</span>
+                  {overlay.busy && <Loader2Icon className="size-5 animate-spin" />}
+                  <span className="font-mono text-xs uppercase tracking-widest">{overlay.label}</span>
                 </div>
               )}
             </div>

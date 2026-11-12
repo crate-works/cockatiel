@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { MediaPlayerEvent } from '@/lib/media-player/types';
+import type { LoadPhase, MediaPlayerEvent } from '@/lib/media-player/types';
 import { createFakeMediaPlayer } from './fake';
 
 describe('media-player wiring (via fake)', () => {
@@ -111,6 +111,31 @@ describe('media-player wiring (via fake)', () => {
       player.simulateReady(60);
       expect(player.getState().minPxPerSec).toBe(10);
       expect(player.getState().pxPerSec).toBe(10);
+    });
+  });
+
+  describe('load phase', () => {
+    it('is idle before any load', () => {
+      expect(createFakeMediaPlayer().getState().loadPhase).toBe('idle');
+    });
+
+    it('moves loading → decoding → ready in the snapshot and as events', async () => {
+      const player = createFakeMediaPlayer();
+      const phases: LoadPhase[] = [];
+      player.on((event) => {
+        if (event.type === 'load-phase') {
+          phases.push(event.phase);
+        }
+      });
+
+      await player.loadBlob(new File(['x'], 'a.wav'));
+      expect(player.getState().loadPhase).toBe('loading');
+      player.simulateLoadPhase('decoding');
+      expect(player.getState().loadPhase).toBe('decoding');
+      player.simulateReady(30);
+
+      expect(player.getState().loadPhase).toBe('ready');
+      expect(phases).toEqual(['loading', 'decoding', 'ready']);
     });
   });
 });

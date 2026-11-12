@@ -16,7 +16,7 @@ import { type TimelineViewport, useMediaPlayer, Waveform } from '@/components/Wa
 import { ZoomControl } from '@/components/ZoomControl';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { loadSession } from '@/lib/persistence/storage';
-import { useAppStore } from '@/lib/store';
+import { selectHasRemoteSource, useAppStore } from '@/lib/store';
 
 const defaultViewport: TimelineViewport = {
   pixelsPerSecond: 100,
@@ -37,8 +37,7 @@ const SessionEditor = () => {
   const [viewport, setViewport] = useState<TimelineViewport>(defaultViewport);
   const [helpOpen, setHelpOpen] = useState(false);
 
-  const sourceUrl = useAppStore((s) => s.sourceUrl);
-  const catalogSource = useAppStore((s) => s.catalogSource);
+  const hasRemoteSource = useAppStore(selectHasRemoteSource);
 
   // Cold load (fresh page / login-return / a different session): hydrate the
   // transcript from IndexedDB, then re-acquire the media by its source. When the
@@ -80,7 +79,7 @@ const SessionEditor = () => {
   // A local-file session whose audio we can't auto-restore (no in-memory file):
   // offer the RestoreBanner (file-handle re-open) and a re-drop zone, preserving
   // the transcript.
-  const needsLocalMedia = !audioFile && !sourceUrl && !catalogSource;
+  const needsLocalMedia = !audioFile && !hasRemoteSource;
 
   return (
     <div className="space-y-3">

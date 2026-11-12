@@ -46,11 +46,11 @@ describe('createFakeMediaPlayer', () => {
     const b = vi.fn();
     const offA = player.on(a);
     player.on(b);
-    player.simulateReady(10);
+    player.simulateTimeUpdate(10);
     expect(a).toHaveBeenCalledTimes(1);
     expect(b).toHaveBeenCalledTimes(1);
     offA();
-    player.simulateReady(20);
+    player.simulateTimeUpdate(20);
     expect(a).toHaveBeenCalledTimes(1);
     expect(b).toHaveBeenCalledTimes(2);
   });
