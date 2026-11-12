@@ -25,9 +25,10 @@ export const useAudioFilePicker = ({ onFileSelected }: UseAudioFilePickerArgs) =
   }, []);
 
   const onDrop = useCallback(
-    (accepted: File[]) => {
-      if (accepted[0]) {
-        onFileSelected(accepted[0]);
+    (accepted: Array<File & { handle?: FileSystemFileHandle }>) => {
+      const [file] = accepted;
+      if (file) {
+        onFileSelected(file, file.handle);
       }
     },
     [onFileSelected],
