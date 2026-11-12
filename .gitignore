@@ -12,6 +12,7 @@ dist
 dist-ssr
 dist-deploy
 coverage
+.vitest
 *.local
 
 # Astro generated types/cache (website workspace)
