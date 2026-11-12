@@ -9,29 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root';
-import { Route as CatalogRouteImport } from './routes/catalog';
 import { Route as IndexRouteImport } from './routes/index';
-import { Route as SessionFingerprintRouteImport } from './routes/session.$fingerprint';
+import { Route as CatalogRouteImport } from './routes/catalog';
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback';
+import { Route as SessionFingerprintRouteImport } from './routes/session.$fingerprint';
 
-const CatalogRoute = CatalogRouteImport.update({
-  id: '/catalog',
-  path: '/catalog',
-  getParentRoute: () => rootRouteImport,
-} as any);
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any);
-const SessionFingerprintRoute = SessionFingerprintRouteImport.update({
-  id: '/session/$fingerprint',
-  path: '/session/$fingerprint',
+const CatalogRoute = CatalogRouteImport.update({
+  id: '/catalog',
+  path: '/catalog',
   getParentRoute: () => rootRouteImport,
 } as any);
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any);
+const SessionFingerprintRoute = SessionFingerprintRouteImport.update({
+  id: '/session/$fingerprint',
+  path: '/session/$fingerprint',
   getParentRoute: () => rootRouteImport,
 } as any);
 
@@ -60,11 +60,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo;
   to: '/' | '/catalog' | '/auth/callback' | '/session/$fingerprint';
   id:
-    | '__root__'
-    | '/'
-    | '/catalog'
-    | '/auth/callback'
-    | '/session/$fingerprint';
+    '__root__' | '/' | '/catalog' | '/auth/callback' | '/session/$fingerprint';
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -76,13 +72,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/catalog': {
-      id: '/catalog';
-      path: '/catalog';
-      fullPath: '/catalog';
-      preLoaderRoute: typeof CatalogRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
     '/': {
       id: '/';
       path: '/';
@@ -90,11 +79,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport;
       parentRoute: typeof rootRouteImport;
     };
-    '/session/$fingerprint': {
-      id: '/session/$fingerprint';
-      path: '/session/$fingerprint';
-      fullPath: '/session/$fingerprint';
-      preLoaderRoute: typeof SessionFingerprintRouteImport;
+    '/catalog': {
+      id: '/catalog';
+      path: '/catalog';
+      fullPath: '/catalog';
+      preLoaderRoute: typeof CatalogRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     '/auth/callback': {
@@ -102,6 +91,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/callback';
       fullPath: '/auth/callback';
       preLoaderRoute: typeof AuthCallbackRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/session/$fingerprint': {
+      id: '/session/$fingerprint';
+      path: '/session/$fingerprint';
+      fullPath: '/session/$fingerprint';
+      preLoaderRoute: typeof SessionFingerprintRouteImport;
       parentRoute: typeof rootRouteImport;
     };
   }
