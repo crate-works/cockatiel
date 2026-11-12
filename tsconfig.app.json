@@ -23,11 +23,9 @@
     "strict": true,
 
     /* Paths - needed for shadcn @/ alias resolution in editor */
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    },
-    "ignoreDeprecations": "6.0"
+    }
   },
   "include": ["src", "__tests__"]
 }
