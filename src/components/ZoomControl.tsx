@@ -1,7 +1,9 @@
 import { MinusIcon, PlusIcon } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { useMediaPlayerState } from '@/hooks/useMediaPlayerState';
+import { selectIsReady } from '@/lib/media-player/state';
 import { fromSliderValue, MAX_PX_PER_SEC, toSliderValue } from '@/lib/media-player/zoom-math';
 import { useMediaPlayer } from './Waveform';
 
@@ -10,38 +12,12 @@ const STEP_FACTOR = 1.25;
 
 export const ZoomControl = () => {
   const player = useMediaPlayer();
-  const [minPx, setMinPx] = useState(0);
-  const [sliderValue, setSliderValue] = useState(0);
-  const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    if (!player) {
-      setIsReady(false);
-      setMinPx(0);
-      setSliderValue(0);
-      return;
-    }
-    const snapshot = player.getState();
-    setIsReady(snapshot.isReady);
-    setMinPx(snapshot.minPxPerSec);
-    setSliderValue(toSliderValue(snapshot.pxPerSec, snapshot.minPxPerSec));
-
-    return player.on((event) => {
-      if (event.type === 'ready') {
-        setIsReady(true);
-        const s = player.getState();
-        setMinPx(s.minPxPerSec);
-        setSliderValue(0);
-      } else if (event.type === 'zoom') {
-        setMinPx(event.minPxPerSec);
-        setSliderValue(toSliderValue(event.pxPerSec, event.minPxPerSec));
-      }
-    });
-  }, [player]);
+  const isReady = useMediaPlayerState(player, selectIsReady);
+  const minPx = useMediaPlayerState(player, (s) => s.minPxPerSec);
+  const sliderValue = useMediaPlayerState(player, (s) => toSliderValue(s.pxPerSec, s.minPxPerSec));
 
   const apply = useCallback(
     (next: number) => {
-      setSliderValue(next);
       player?.setZoom(fromSliderValue(next, minPx));
     },
     [player, minPx],

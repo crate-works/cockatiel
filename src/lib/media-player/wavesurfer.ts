@@ -4,8 +4,9 @@ import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import ZoomPlugin from 'wavesurfer.js/dist/plugins/zoom.esm.js';
 import { createEmitter } from './emitter';
 import { createWavesurferRegionSync } from './region-sync/wavesurfer';
-import type { DesiredRegions, LoadPhase, MediaPlayer, MediaPlayerEvent, MediaPlayerState, Viewport } from './types';
-import { computeZoomWindow } from './zoom-math';
+import { createSnapshotCell, initialMediaPlayerState, selectIsReady } from './state';
+import type { DesiredRegions, LoadPhase, MediaPlayer, MediaPlayerEvent, Viewport } from './types';
+import { computeMinPxPerSec, computeZoomWindow } from './zoom-math';
 
 export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (speaker: number) => string, media?: HTMLMediaElement | null): MediaPlayer => {
   const regions = RegionsPlugin.create();
@@ -34,30 +35,15 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
   const events = createEmitter<MediaPlayerEvent>();
   const emit = events.emit;
 
-  const state: MediaPlayerState = {
-    currentTime: 0,
-    duration: 0,
-    isPlaying: false,
-    isReady: false,
-    loadPhase: 'idle',
-    minPxPerSec: 0,
-    pxPerSec: 0,
-    viewport: { pixelsPerSecond: 0, visibleEndTime: 0, visibleStartTime: 0 },
-  };
+  const snapshot = createSnapshotCell();
+  const { get: current, update } = snapshot;
 
   const setLoadPhase = (phase: LoadPhase): void => {
-    state.loadPhase = phase;
-    state.isReady = phase === 'ready';
+    update({ loadPhase: phase });
     emit({ phase, type: 'load-phase' });
   };
 
-  const updateMinPxPerSec = (): number => {
-    const width = container.clientWidth;
-    const duration = ws.getDuration();
-    const next = width > 0 && duration > 0 ? width / duration : 0;
-    state.minPxPerSec = next;
-    return next;
-  };
+  const fitPxPerSec = (): number => computeMinPxPerSec(container.clientWidth, ws.getDuration());
 
   // Viewport emission — rAF-coalesced so scroll/zoom drags don't re-render tiers per frame.
   let rafId: number | null = null;
@@ -68,9 +54,10 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
     // at) rather than re-deriving it from the visible window, so transcript
     // tiers scroll at exactly the waveform's rate. Fall back to the window only
     // before the first zoom is known.
-    const pps = state.pxPerSec > 0 ? state.pxPerSec : container.clientWidth / (visibleEndTime - visibleStartTime || 1);
+    const { pxPerSec } = current();
+    const pps = pxPerSec > 0 ? pxPerSec : container.clientWidth / (visibleEndTime - visibleStartTime || 1);
     const viewport: Viewport = { pixelsPerSecond: pps, visibleEndTime, visibleStartTime };
-    state.viewport = viewport;
+    update({ viewport });
     emit({ type: 'viewport', viewport });
   };
 
@@ -106,11 +93,9 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
     if (ws.getState().loadPhase.value !== 'ready') {
       return;
     }
-    state.duration = duration;
-    updateMinPxPerSec();
-    state.pxPerSec = state.minPxPerSec;
+    const minPxPerSec = fitPxPerSec();
+    update({ duration, minPxPerSec, pxPerSec: minPxPerSec });
     setLoadPhase('ready');
-    emit({ duration, type: 'ready' });
     emitFullViewport();
     if (pendingRegions) {
       regionSync.sync(pendingRegions);
@@ -126,28 +111,28 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
   });
 
   const unsubPlay = ws.on('play', () => {
-    state.isPlaying = true;
+    update({ isPlaying: true });
     emit({ type: 'play' });
   });
 
   const unsubPause = ws.on('pause', () => {
-    state.isPlaying = false;
+    update({ isPlaying: false });
     emit({ type: 'pause' });
   });
 
   const unsubTime = ws.on('timeupdate', (currentTime: number) => {
-    state.currentTime = currentTime;
+    update({ currentTime });
     emit({ currentTime, type: 'timeupdate' });
   });
 
   const unsubZoom = ws.on('zoom', (pxPerSec: number) => {
-    state.pxPerSec = pxPerSec;
-    emit({ minPxPerSec: state.minPxPerSec, pxPerSec, type: 'zoom' });
+    update({ pxPerSec });
+    emit({ minPxPerSec: current().minPxPerSec, pxPerSec, type: 'zoom' });
     // A zoom that leaves the scroll position unchanged (e.g. the playhead at the
     // very start) emits no native scroll event, so the viewport — and every
     // transcript tier positioned from it — would otherwise keep the previous
     // zoom's scale. Recompute the visible window at the new scale and republish.
-    if (state.isReady && pxPerSec > 0) {
+    if (selectIsReady(current()) && pxPerSec > 0) {
       const visibleStartTime = ws.getScroll() / pxPerSec;
       const visibleEndTime = visibleStartTime + ws.getWidth() / pxPerSec;
       scheduleViewport(visibleStartTime, visibleEndTime);
@@ -160,8 +145,8 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
 
   // Container-width tracking — recompute minPxPerSec when the layout changes.
   const resizeObserver = new ResizeObserver(() => {
-    if (state.isReady) {
-      updateMinPxPerSec();
+    if (selectIsReady(current())) {
+      update({ minPxPerSec: fitPxPerSec() });
     }
   });
   resizeObserver.observe(container);
@@ -202,15 +187,21 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
         rafId = null;
       }
       events.clear();
+      snapshot.clear();
       ws.destroy();
     },
-    getState: () => state,
+    getState: current,
     loadBlob: async (file) => {
       if (loadedFile === file) {
         return;
       }
       loadedFile = file;
-      setLoadPhase('loading');
+      // wavesurfer keeps the last zoom across loads; a new file starts fitted to the width.
+      if (current().pxPerSec > current().minPxPerSec) {
+        ws.setOptions({ minPxPerSec: 0 });
+      }
+      update({ ...initialMediaPlayerState, loadPhase: 'loading' });
+      emit({ phase: 'loading', type: 'load-phase' });
       await ws.loadBlob(file);
     },
     on: events.on,
@@ -232,8 +223,9 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
     skip: (delta) => {
       ws.skip(delta);
     },
+    subscribe: snapshot.subscribe,
     syncRegions: (desired) => {
-      if (!state.isReady) {
+      if (!selectIsReady(current())) {
         pendingRegions = desired;
         return;
       }

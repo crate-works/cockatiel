@@ -1,6 +1,7 @@
 import { createEmitter } from '@/lib/media-player/emitter';
-import type { DesiredRegions, LoadPhase, MediaPlayer, MediaPlayerEvent, MediaPlayerState, RegionSpec } from '@/lib/media-player/types';
-import { computeZoomWindow } from '@/lib/media-player/zoom-math';
+import { createSnapshotCell, initialMediaPlayerState } from '@/lib/media-player/state';
+import type { DesiredRegions, LoadPhase, MediaPlayer, MediaPlayerEvent, RegionSpec } from '@/lib/media-player/types';
+import { computeMinPxPerSec, computeZoomWindow } from '@/lib/media-player/zoom-math';
 
 export interface FakeMediaPlayer extends MediaPlayer {
   disposed(): boolean;
@@ -26,16 +27,8 @@ export const createFakeMediaPlayer = (options: FakeMediaPlayerOptions = {}): Fak
   let clientXToTimeImpl: (clientX: number) => number | null = () => null;
   const containerWidth = options.containerWidth ?? 1000;
 
-  const state: MediaPlayerState = {
-    currentTime: 0,
-    duration: 0,
-    isPlaying: false,
-    isReady: false,
-    loadPhase: 'idle',
-    minPxPerSec: 0,
-    pxPerSec: 0,
-    viewport: { pixelsPerSecond: 0, visibleEndTime: 0, visibleStartTime: 0 },
-  };
+  const snapshot = createSnapshotCell();
+  const { get: current, update } = snapshot;
 
   const emit = (event: MediaPlayerEvent): void => {
     // Mirror the real adapter: a bounds-changed event means the DOM just moved,
@@ -51,13 +44,8 @@ export const createFakeMediaPlayer = (options: FakeMediaPlayerOptions = {}): Fak
   };
 
   const setLoadPhase = (phase: LoadPhase): void => {
-    state.loadPhase = phase;
-    state.isReady = phase === 'ready';
+    update({ loadPhase: phase });
     emit({ phase, type: 'load-phase' });
-  };
-
-  const recomputeMinPxPerSec = (): void => {
-    state.minPxPerSec = containerWidth > 0 && state.duration > 0 ? containerWidth / state.duration : 0;
   };
 
   return {
@@ -65,56 +53,57 @@ export const createFakeMediaPlayer = (options: FakeMediaPlayerOptions = {}): Fak
     dispose: () => {
       isDisposed = true;
       events.clear();
+      snapshot.clear();
     },
     disposed: () => isDisposed,
     emit,
-    getState: () => state,
+    getState: current,
     lastDesiredRegions: () => latest,
     loadBlob: async () => {
-      setLoadPhase('loading');
+      update({ ...initialMediaPlayerState, loadPhase: 'loading' });
+      emit({ phase: 'loading', type: 'load-phase' });
     },
     on: events.on,
     pause: () => {
-      state.isPlaying = false;
+      update({ isPlaying: false });
       emit({ type: 'pause' });
     },
     play: () => {
-      state.isPlaying = true;
+      update({ isPlaying: true });
       emit({ type: 'play' });
     },
     playPause: () => {
-      state.isPlaying = !state.isPlaying;
-      emit({ type: state.isPlaying ? 'play' : 'pause' });
+      update({ isPlaying: !current().isPlaying });
+      emit({ type: current().isPlaying ? 'play' : 'pause' });
     },
     regions: () => dom,
     seek: (time) => {
-      state.currentTime = time;
+      update({ currentTime: time });
     },
     setClientXToTime: (fn) => {
       clientXToTimeImpl = fn;
     },
     setZoom: (pxPerSec) => {
-      state.pxPerSec = pxPerSec;
-      emit({ minPxPerSec: state.minPxPerSec, pxPerSec, type: 'zoom' });
+      update({ pxPerSec });
+      emit({ minPxPerSec: current().minPxPerSec, pxPerSec, type: 'zoom' });
     },
     simulateBoundsChanged: (id, start, end) => {
       emit({ end, id, start, type: 'region-bounds-changed' });
     },
     simulateLoadPhase: setLoadPhase,
     simulateReady: (duration) => {
-      state.duration = duration;
-      recomputeMinPxPerSec();
-      state.pxPerSec = state.minPxPerSec;
+      const minPxPerSec = computeMinPxPerSec(containerWidth, duration);
+      update({ duration, minPxPerSec, pxPerSec: minPxPerSec });
       setLoadPhase('ready');
-      emit({ duration, type: 'ready' });
     },
     simulateTimeUpdate: (time) => {
-      state.currentTime = time;
+      update({ currentTime: time });
       emit({ currentTime: time, type: 'timeupdate' });
     },
     skip: (delta) => {
-      state.currentTime = Math.max(0, state.currentTime + delta);
+      update({ currentTime: Math.max(0, current().currentTime + delta) });
     },
+    subscribe: snapshot.subscribe,
     syncRegions: (desired) => {
       latest = desired;
       dom.clear();
@@ -123,10 +112,10 @@ export const createFakeMediaPlayer = (options: FakeMediaPlayerOptions = {}): Fak
       }
     },
     zoomToWindow: (start, end) => {
-      const window = computeZoomWindow(containerWidth, state.duration, start, end);
+      const window = computeZoomWindow(containerWidth, current().duration, start, end);
       if (window) {
-        state.pxPerSec = window.pxPerSec;
-        emit({ minPxPerSec: state.minPxPerSec, pxPerSec: window.pxPerSec, type: 'zoom' });
+        update({ pxPerSec: window.pxPerSec });
+        emit({ minPxPerSec: current().minPxPerSec, pxPerSec: window.pxPerSec, type: 'zoom' });
       }
     },
   };

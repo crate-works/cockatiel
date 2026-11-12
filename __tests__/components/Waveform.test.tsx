@@ -1,6 +1,8 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Controls } from '@/components/Controls';
 import { Waveform } from '@/components/Waveform';
+import { ZoomControl } from '@/components/ZoomControl';
 import { useAppStore } from '@/lib/store';
 import { createFakeMediaPlayer, type FakeMediaPlayer } from '../lib/media-player/fake';
 
@@ -111,6 +113,140 @@ describe('Waveform overlay', () => {
 
       expect(screen.getByText('No media loaded')).toBeInTheDocument();
       expect(container.querySelector('.animate-spin')).toBeNull();
+    });
+  });
+});
+
+const withControls = (audioFile: File | null) => (
+  <Waveform audioFile={audioFile}>
+    <Controls />
+    <ZoomControl />
+  </Waveform>
+);
+
+describe('player controls follow the load phase', () => {
+  let player: FakeMediaPlayer;
+
+  beforeEach(() => {
+    useAppStore.getState().reset();
+    player = createFakeMediaPlayer({ containerWidth: 600 });
+    players.current = player;
+  });
+
+  afterEach(() => {
+    useAppStore.getState().reset();
+  });
+
+  describe('play button', () => {
+    it.each(['decoding', 'error'] as const)('stays disabled while the load phase is %s', (phase) => {
+      render(withControls(audio()));
+
+      act(() => player.simulateLoadPhase(phase));
+
+      expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
+    });
+
+    it('is disabled until the media is ready', () => {
+      render(withControls(audio()));
+      expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
+
+      act(() => player.simulateReady(60));
+
+      expect(screen.getByRole('button', { name: 'Play' })).toBeEnabled();
+    });
+
+    it('is disabled again while a replacement file loads', () => {
+      const { rerender } = render(withControls(audio()));
+      act(() => player.simulateReady(60));
+
+      rerender(withControls(audio()));
+
+      expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
+    });
+  });
+
+  describe('zoom', () => {
+    // Base UI hides the thumb until it measures layout, which jsdom never provides.
+    const zoomSlider = () => screen.getByRole('slider', { hidden: true });
+
+    it('is disabled until the waveform is ready, then starts fully zoomed out', () => {
+      render(withControls(audio()));
+      expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
+
+      act(() => player.simulateReady(60));
+
+      expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
+      expect(zoomSlider()).toHaveAttribute('aria-valuenow', '0');
+    });
+
+    it('follows zoom changes made outside the slider', () => {
+      render(withControls(audio()));
+      act(() => player.simulateReady(60));
+
+      act(() => player.setZoom(1000));
+
+      expect(Number(zoomSlider().getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+    });
+
+    it('zooms the player when the zoom-in button is pressed', () => {
+      render(withControls(audio()));
+      act(() => player.simulateReady(60));
+
+      act(() => screen.getByRole('button', { name: 'Zoom in' }).click());
+
+      expect(player.getState().pxPerSec).toBeGreaterThan(10);
+      expect(Number(zoomSlider().getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+    });
+
+    it('is disabled again while a replacement file loads', () => {
+      const { rerender } = render(withControls(audio()));
+      act(() => player.simulateReady(60));
+
+      rerender(withControls(audio()));
+
+      expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
+    });
+  });
+
+  describe('time display', () => {
+    it('shows the recording length once ready', () => {
+      render(withControls(audio()));
+      expect(screen.getByText('0:00.0 / 0:00.0')).toBeInTheDocument();
+
+      act(() => player.simulateReady(75.5));
+
+      expect(screen.getByText('0:00.0 / 1:15.5')).toBeInTheDocument();
+    });
+
+    it('follows the current time during playback', () => {
+      render(withControls(audio()));
+      act(() => player.simulateReady(75.5));
+
+      act(() => player.simulateTimeUpdate(12.3));
+
+      expect(screen.getByText('0:12.3 / 1:15.5')).toBeInTheDocument();
+    });
+
+    it('goes back to zero while a replacement file loads', () => {
+      const { rerender } = render(withControls(audio()));
+      act(() => player.simulateReady(75.5));
+      act(() => player.simulateTimeUpdate(12.3));
+
+      rerender(withControls(audio()));
+
+      expect(screen.getByText('0:00.0 / 0:00.0')).toBeInTheDocument();
+    });
+
+    it('starts the replacement file at zero once it is ready', () => {
+      const { rerender } = render(withControls(audio()));
+      act(() => player.simulateReady(75.5));
+      act(() => player.simulateTimeUpdate(12.3));
+
+      rerender(withControls(audio()));
+      act(() => player.simulateReady(30));
+
+      expect(screen.getByText('0:00.0 / 0:30.0')).toBeInTheDocument();
     });
   });
 });

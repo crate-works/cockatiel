@@ -2,6 +2,7 @@ import { Loader2Icon } from 'lucide-react';
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { isVideoFile } from '@/hooks/useAudioFilePicker';
 import { useMediaPlayerBridge } from '@/hooks/useMediaPlayerBridge';
+import { useMediaPlayerState } from '@/hooks/useMediaPlayerState';
 import { getSpeakerColour } from '@/lib/constants';
 import type { LoadPhase, MediaPlayer, Viewport } from '@/lib/media-player/types';
 import { createWavesurferMediaPlayer } from '@/lib/media-player/wavesurfer';
@@ -59,7 +60,6 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [player, setPlayer] = useState<MediaPlayer | null>(null);
-  const [loadPhase, setLoadPhase] = useState<LoadPhase>('idle');
 
   // A <video> element backs every load (it plays audio-only files just as well),
   // but we only reveal it when the file is actually video.
@@ -98,25 +98,20 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
 
   useEffect(() => {
     if (!player) {
-      setLoadPhase('idle');
       return;
     }
-    const snapshot = player.getState();
-    setLoadPhase(snapshot.loadPhase);
-    if (snapshot.viewport.pixelsPerSecond > 0) {
-      onViewportChangeRef.current?.(snapshot.viewport);
+    const { viewport } = player.getState();
+    if (viewport.pixelsPerSecond > 0) {
+      onViewportChangeRef.current?.(viewport);
     }
     return player.on((event) => {
-      switch (event.type) {
-        case 'load-phase':
-          setLoadPhase(event.phase);
-          break;
-        case 'viewport':
-          onViewportChangeRef.current?.(event.viewport);
-          break;
+      if (event.type === 'viewport') {
+        onViewportChangeRef.current?.(event.viewport);
       }
     });
   }, [player]);
+
+  const loadPhase = useMediaPlayerState(player, (s) => s.loadPhase);
 
   const { getClickContext } = useMediaPlayerBridge(player);
   const mediaDownload = useAppStore((s) => s.mediaDownload);

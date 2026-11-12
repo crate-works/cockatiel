@@ -7,6 +7,8 @@ interface ZoomWindow {
   scroll: number;
 }
 
+export const computeMinPxPerSec = (containerWidth: number, duration: number): number => (containerWidth > 0 && duration > 0 ? containerWidth / duration : 0);
+
 export const computeZoomWindow = (containerWidth: number, duration: number, segStart: number, segEnd: number): ZoomWindow | null => {
   if (containerWidth <= 0 || duration <= 0) {
     return null;
