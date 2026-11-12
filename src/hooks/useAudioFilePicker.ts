@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { useDropzone } from 'react-dropzone';
+import { ErrorCode, type FileRejection, useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
 import { getErrorMessage, isAbortError } from '@/lib/utils';
 import { prewarm } from '@/lib/vad';
@@ -25,11 +25,22 @@ export const useAudioFilePicker = ({ onFileSelected }: UseAudioFilePickerArgs) =
   }, []);
 
   const onDrop = useCallback(
-    (accepted: Array<File & { handle?: FileSystemFileHandle }>) => {
+    (accepted: Array<File & { handle?: FileSystemFileHandle }>, rejections: FileRejection[]) => {
       const [file] = accepted;
       if (file) {
         onFileSelected(file, file.handle);
+        return;
       }
+      const [rejection] = rejections;
+      if (!rejection) {
+        return;
+      }
+      const invalidType = rejection.errors.some((e) => e.code === ErrorCode.FileInvalidType);
+      toast.error(
+        invalidType
+          ? `Can't open ${rejection.file.name}: unsupported format. Supported: ${SUPPORTED_FORMATS_LABEL}`
+          : `Can't open ${rejection.file.name}: ${rejection.errors[0]?.message ?? 'file rejected'}`,
+      );
     },
     [onFileSelected],
   );
