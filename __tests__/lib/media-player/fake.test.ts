@@ -3,13 +3,59 @@ import type { MediaPlayerEvent } from '@/lib/media-player/types';
 import { createFakeMediaPlayer } from './fake';
 
 describe('createFakeMediaPlayer', () => {
-  it('fires ready with the simulated duration', () => {
+  it('reports readiness through the load phase, with the duration already set', () => {
+    const player = createFakeMediaPlayer();
+    const events: MediaPlayerEvent[] = [];
+    player.on((e) => events.push(e));
+
+    player.simulateReady(42);
+
+    expect(events).toEqual([{ phase: 'ready', type: 'load-phase' }]);
+    expect(player.getState()).toMatchObject({ duration: 42, loadPhase: 'ready' });
+  });
+
+  it('replaces the state snapshot on change and keeps it when nothing changes', () => {
+    const player = createFakeMediaPlayer();
+    const before = player.getState();
+    expect(player.getState()).toBe(before);
+
+    player.play();
+
+    expect(player.getState()).not.toBe(before);
+    expect(before.isPlaying).toBe(false);
+  });
+
+  it('notifies subscribers of every state change, including ones with no event', () => {
     const player = createFakeMediaPlayer();
     const listener = vi.fn();
-    player.on(listener);
-    player.simulateReady(42);
-    expect(listener).toHaveBeenCalledWith({ duration: 42, type: 'ready' } satisfies MediaPlayerEvent);
-    expect(player.getState()).toMatchObject({ duration: 42, isReady: true });
+    player.subscribe(listener);
+
+    player.seek(5);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('neither replaces the snapshot nor notifies when a change sets the same values', () => {
+    const player = createFakeMediaPlayer();
+    const before = player.getState();
+    const listener = vi.fn();
+    player.subscribe(listener);
+
+    player.pause();
+
+    expect(player.getState()).toBe(before);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('clears the previous file from the snapshot when a new load starts', async () => {
+    const player = createFakeMediaPlayer();
+    player.simulateReady(60);
+    player.play();
+    player.seek(12);
+
+    await player.loadBlob(new File(['x'], 'b.wav'));
+
+    expect(player.getState()).toMatchObject({ currentTime: 0, duration: 0, isPlaying: false, loadPhase: 'loading', pxPerSec: 0 });
   });
 
   it('toggles isPlaying on play/pause/playPause', () => {

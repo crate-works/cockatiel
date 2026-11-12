@@ -14,7 +14,6 @@ export interface MediaPlayerState {
   currentTime: number;
   duration: number;
   isPlaying: boolean;
-  isReady: boolean;
   loadPhase: LoadPhase;
   minPxPerSec: number;
   pxPerSec: number;
@@ -22,7 +21,6 @@ export interface MediaPlayerState {
 }
 
 export type MediaPlayerEvent =
-  | { type: 'ready'; duration: number }
   | { type: 'load-phase'; phase: LoadPhase }
   | { type: 'play' }
   | { type: 'pause' }
@@ -45,6 +43,7 @@ export interface MediaPlayer {
   seek(time: number): void;
   setZoom(pxPerSec: number): void;
   skip(delta: number): void;
+  subscribe(listener: () => void): () => void;
   syncRegions(state: DesiredRegions): void;
   zoomToWindow(start: number, end: number): void;
 }
