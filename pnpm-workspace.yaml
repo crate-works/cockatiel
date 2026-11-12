@@ -4,11 +4,18 @@ update:
 autoDedupe: true
 saveTypes: true
 
+lockfile:
+  includeResolutionSettings: true
+
 packages:
   - website
 
 allowBuilds:
-  esbuild: true # native bundler used by astro/vite
+  # Downloads its platform binary; vite and astro bundle with it.
+  esbuild: true
+  # Installs the git hooks.
   lefthook: true
+  # Not currently installed; its postinstall only copies the mock service worker into public dirs.
   msw: false
-  sharp: true # native image processing used by astro
+  # Fetches the prebuilt libvips binary; astro's image pipeline uses it.
+  sharp: true
