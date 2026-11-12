@@ -1,11 +1,12 @@
 import { Loader2Icon } from 'lucide-react';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { isVideoFile } from '@/hooks/useAudioFilePicker';
 import { useMediaPlayerBridge } from '@/hooks/useMediaPlayerBridge';
 import { getSpeakerColour } from '@/lib/constants';
 import type { MediaPlayer, Viewport } from '@/lib/media-player/types';
 import { createWavesurferMediaPlayer } from '@/lib/media-player/wavesurfer';
 import { useAppStore } from '@/lib/store';
-import { getErrorMessage } from '@/lib/utils';
+import { getErrorMessage, isAbortError } from '@/lib/utils';
 import { SegmentContextMenu } from './SegmentContextMenu';
 
 const MediaPlayerContext = createContext<MediaPlayer | null>(null);
@@ -28,7 +29,7 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
 
   // A <video> element backs every load (it plays audio-only files just as well),
   // but we only reveal it when the file is actually video.
-  const isVideo = audioFile?.type.startsWith('video/') ?? false;
+  const isVideo = audioFile ? isVideoFile(audioFile) : false;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -53,6 +54,9 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
     }
     setIsReady(false);
     player.loadBlob(audioFile).catch((err: unknown) => {
+      if (isAbortError(err)) {
+        return;
+      }
       console.error('Failed to load audio:', err);
       useAppStore.getState().setStatus(`Error loading audio: ${getErrorMessage(err)}`);
       useAppStore.getState().setEditorStatus('idle');

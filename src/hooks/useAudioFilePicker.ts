@@ -1,15 +1,19 @@
 import { useCallback, useEffect } from 'react';
-import { useDropzone } from 'react-dropzone';
+import { ErrorCode, type FileRejection, useDropzone } from 'react-dropzone';
 import { toast } from 'sonner';
 import { getErrorMessage, isAbortError } from '@/lib/utils';
 import { prewarm } from '@/lib/vad';
 
-const AUDIO_EXTENSIONS = ['.wav', '.mp3', '.flac', '.ogg', '.m4a', '.aac', '.wma'];
+// Formats browsers' decodeAudioData can handle; captions are generated from its output.
+const AUDIO_EXTENSIONS = ['.wav', '.mp3', '.flac', '.ogg', '.oga', '.opus', '.m4a', '.aac', '.weba'];
 const VIDEO_EXTENSIONS = ['.mp4', '.m4v', '.mov', '.webm', '.ogv', '.mkv'];
 const ACCEPT_MEDIA = { 'audio/*': AUDIO_EXTENSIONS, 'video/*': VIDEO_EXTENSIONS };
 
+export const isVideoFile = (file: File): boolean =>
+  file.type ? file.type.startsWith('video/') : VIDEO_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
+
 /** Human-friendly summary of accepted formats, shown in the drop targets. */
-export const SUPPORTED_FORMATS_LABEL = 'WAV, MP3, FLAC, OGG, M4A · MP4, MOV, WEBM, MKV';
+export const SUPPORTED_FORMATS_LABEL = 'WAV, MP3, FLAC, OGG, OPUS, M4A, AAC · MP4, MOV, WEBM, MKV';
 
 interface UseAudioFilePickerArgs {
   onFileSelected: (file: File, handle?: FileSystemFileHandle) => void;
@@ -21,10 +25,22 @@ export const useAudioFilePicker = ({ onFileSelected }: UseAudioFilePickerArgs) =
   }, []);
 
   const onDrop = useCallback(
-    (accepted: File[]) => {
-      if (accepted[0]) {
-        onFileSelected(accepted[0]);
+    (accepted: Array<File & { handle?: FileSystemFileHandle }>, rejections: FileRejection[]) => {
+      const [file] = accepted;
+      if (file) {
+        onFileSelected(file, file.handle);
+        return;
       }
+      const [rejection] = rejections;
+      if (!rejection) {
+        return;
+      }
+      const invalidType = rejection.errors.some((e) => e.code === ErrorCode.FileInvalidType);
+      toast.error(
+        invalidType
+          ? `Can't open ${rejection.file.name}: unsupported format. Supported: ${SUPPORTED_FORMATS_LABEL}`
+          : `Can't open ${rejection.file.name}: ${rejection.errors[0]?.message ?? 'file rejected'}`,
+      );
     },
     [onFileSelected],
   );

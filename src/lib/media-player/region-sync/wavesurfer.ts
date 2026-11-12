@@ -1,5 +1,6 @@
 import type WaveSurfer from 'wavesurfer.js';
 import type RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
+import type { Region } from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import { createEmitter } from '../emitter';
 import { clientXToTime } from './click-math';
 import { diffRegions } from './diff';
@@ -13,7 +14,7 @@ const tint = (colour: string, selected: boolean): string => `${colour}${selected
 
 export const createWavesurferRegionSync = (
   ws: WaveSurfer,
-  regions: RegionsPlugin,
+  regions: InstanceType<typeof RegionsPlugin>,
   container: HTMLElement,
   colourFor: (speaker: number) => string,
 ): RegionSync => {
@@ -26,7 +27,7 @@ export const createWavesurferRegionSync = (
 
   const emit = events.emit;
 
-  const regionById = (): Map<string, ReturnType<RegionsPlugin['getRegions']>[number]> => {
+  const regionById = (): Map<string, Region> => {
     return new Map(regions.getRegions().map((r) => [r.id, r]));
   };
 
