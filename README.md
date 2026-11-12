@@ -62,15 +62,15 @@ Then open [http://localhost:5173](http://localhost:5173).
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start dev server |
-| `pnpm build` | Type-check and build for production |
-| `pnpm preview` | Preview production build |
-| `pnpm lint:biome` | Lint and format with Biome |
-| `pnpm lint:knip` | Find unused code with Knip |
-| `pnpm lint:types` | Type-check with TypeScript |
-| `pnpm test` | Run tests with Vitest |
+| Command           | Description                         |
+| ----------------- | ----------------------------------- |
+| `pnpm dev`        | Start dev server                    |
+| `pnpm build`      | Type-check and build for production |
+| `pnpm preview`    | Preview production build            |
+| `pnpm lint:biome` | Lint and format with Biome          |
+| `pnpm lint:knip`  | Find unused code with Knip          |
+| `pnpm lint:types` | Type-check with TypeScript          |
+| `pnpm test`       | Run tests with Vitest               |
 
 ## Tech stack
 
