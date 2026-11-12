@@ -8,6 +8,9 @@ const AUDIO_EXTENSIONS = ['.wav', '.mp3', '.flac', '.ogg', '.m4a', '.aac', '.wma
 const VIDEO_EXTENSIONS = ['.mp4', '.m4v', '.mov', '.webm', '.ogv', '.mkv'];
 const ACCEPT_MEDIA = { 'audio/*': AUDIO_EXTENSIONS, 'video/*': VIDEO_EXTENSIONS };
 
+export const isVideoFile = (file: File): boolean =>
+  file.type ? file.type.startsWith('video/') : VIDEO_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
+
 /** Human-friendly summary of accepted formats, shown in the drop targets. */
 export const SUPPORTED_FORMATS_LABEL = 'WAV, MP3, FLAC, OGG, M4A · MP4, MOV, WEBM, MKV';
 

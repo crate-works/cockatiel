@@ -1,5 +1,6 @@
 import { Loader2Icon } from 'lucide-react';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { isVideoFile } from '@/hooks/useAudioFilePicker';
 import { useMediaPlayerBridge } from '@/hooks/useMediaPlayerBridge';
 import { getSpeakerColour } from '@/lib/constants';
 import type { MediaPlayer, Viewport } from '@/lib/media-player/types';
@@ -28,7 +29,7 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
 
   // A <video> element backs every load (it plays audio-only files just as well),
   // but we only reveal it when the file is actually video.
-  const isVideo = audioFile?.type.startsWith('video/') ?? false;
+  const isVideo = audioFile ? isVideoFile(audioFile) : false;
 
   useEffect(() => {
     const container = containerRef.current;
