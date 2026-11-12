@@ -13,6 +13,9 @@ import type { VadConfig, VadSegment } from './vad';
 // means no editor session is active (we're on the landing/catalog routes).
 type EditorStatus = 'idle' | 'processing' | 'ready';
 
+// Re-download of a reopened session's media, before the player has a file.
+export type MediaDownload = { kind: 'idle' } | { kind: 'downloading'; fraction?: number } | { kind: 'failed' };
+
 interface AppState {
   editorStatus: EditorStatus;
   catalogSource: CatalogSource | null;
@@ -20,6 +23,7 @@ interface AppState {
   fileHandle: FileSystemFileHandle | null;
   fingerprint: string;
   loopOnSelect: boolean;
+  mediaDownload: MediaDownload;
   mediaDuration: number;
   mediaFileName: string;
   processingProgress: number;
@@ -51,6 +55,7 @@ interface AppState {
   setDefaultSpeaker: (index: number) => void;
   setFileHandle: (handle: FileSystemFileHandle | null) => void;
   setFingerprint: (fingerprint: string) => void;
+  setMediaDownload: (download: MediaDownload) => void;
   setMediaFile: (name: string, duration: number) => void;
   setProgress: (fraction: number) => void;
   setCatalogSource: (source: CatalogSource | null) => void;
@@ -78,6 +83,7 @@ const initialState = {
   fileHandle: null as FileSystemFileHandle | null,
   fingerprint: '',
   loopOnSelect: false,
+  mediaDownload: { kind: 'idle' } as MediaDownload,
   mediaDuration: 0,
   mediaFileName: '',
   processingProgress: 0,
@@ -90,9 +96,12 @@ const initialState = {
   vadConfig: { ...DEFAULT_VAD_CONFIG },
 };
 
+export const selectHasRemoteSource = (state: AppState): boolean => state.sourceUrl !== null || state.catalogSource !== null;
+
 export const useAppStore = create<AppState>((set, get) => ({
   ...initialState,
 
+  setMediaDownload: (mediaDownload) => set({ mediaDownload }),
   setMediaFile: (name, duration) => set({ mediaFileName: name, mediaDuration: duration }),
   setEditorStatus: (status) => set({ editorStatus: status }),
   setFileHandle: (fileHandle) => set({ fileHandle }),
@@ -108,6 +117,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       catalogSource: session.catalogSource ?? null,
       fileHandle: session.fileHandle ?? null,
       fingerprint: session.fingerprint,
+      mediaDownload: { kind: 'idle' },
       mediaDuration: session.mediaDuration,
       mediaFileName: session.mediaFileName,
       segments: session.segments,

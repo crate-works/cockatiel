@@ -36,6 +36,13 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile, onReady }: UseRe
   const confirmationResolverRef = useRef<((proceed: boolean) => void) | null>(null);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmationView | null>(null);
 
+  // Superseded loads leave the state to the load that replaced them.
+  const markMediaFailed = useCallback((controller?: AbortController) => {
+    if (!controller || downloadAbortRef.current === controller) {
+      useAppStore.getState().setMediaDownload({ kind: 'failed' });
+    }
+  }, []);
+
   const cancel = useCallback(() => {
     downloadAbortRef.current?.abort();
   }, []);
@@ -68,6 +75,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile, onReady }: UseRe
       try {
         url = validateUrl(trimmed);
       } catch (error) {
+        markMediaFailed();
         toast.error(formatRemoteAudioError(error));
         return;
       }
@@ -98,6 +106,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile, onReady }: UseRe
       const handleFailure = (error: unknown) => {
         store.setEditorStatus('idle');
         store.setStatus('');
+        markMediaFailed(controller);
         if (isAbortError(error)) {
           return;
         }
@@ -144,13 +153,14 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile, onReady }: UseRe
 
       await processFile(file, { sourceUrl: href });
     },
-    [processFile, requestConfirmation, setAudioFile, onReady],
+    [processFile, requestConfirmation, setAudioFile, onReady, markMediaFailed],
   );
 
   const loadFromCatalog = useCallback(
     async (source: CatalogSource, options?: TranscriptImportOptions) => {
       const provider = getProvider(source.providerId);
       if (!provider) {
+        markMediaFailed();
         toast.error(`Unknown catalog provider: ${source.providerId}`);
         return;
       }
@@ -161,13 +171,14 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile, onReady }: UseRe
       const { signal } = controller;
 
       const store = useAppStore.getState();
-      const handleFailure = (error: unknown) => {
+      const handleFailure = (error: unknown, format: (error: unknown) => string = formatRemoteAudioError) => {
         store.setEditorStatus('idle');
         store.setStatus('');
+        markMediaFailed(controller);
         if (isAbortError(error)) {
           return;
         }
-        toast.error(formatArocapiError(error));
+        toast.error(format(error));
       };
 
       store.setEditorStatus('processing');
@@ -179,7 +190,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile, onReady }: UseRe
       try {
         resolved = await resolveFileUrl(provider, source.fileId, { signal });
       } catch (error) {
-        handleFailure(error);
+        handleFailure(error, formatArocapiError);
         return;
       }
 
@@ -189,9 +200,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile, onReady }: UseRe
       try {
         url = validateUrl(resolved);
       } catch (error) {
-        store.setEditorStatus('idle');
-        store.setStatus('');
-        toast.error(formatRemoteAudioError(error));
+        handleFailure(error);
         return;
       }
 
@@ -200,11 +209,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile, onReady }: UseRe
       try {
         meta = await inspectRemoteAudio(url, signal);
       } catch (error) {
-        store.setEditorStatus('idle');
-        store.setStatus('');
-        if (!isAbortError(error)) {
-          toast.error(formatRemoteAudioError(error));
-        }
+        handleFailure(error);
         return;
       }
 
@@ -221,11 +226,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile, onReady }: UseRe
           signal,
         });
       } catch (error) {
-        store.setEditorStatus('idle');
-        store.setStatus('');
-        if (!isAbortError(error)) {
-          toast.error(formatRemoteAudioError(error));
-        }
+        handleFailure(error);
         return;
       }
 
@@ -234,7 +235,7 @@ export const useRemoteAudioLoad = ({ processFile, setAudioFile, onReady }: UseRe
       // everything needed to re-resolve a fresh URL on demand.
       await processFile(file, { catalogSource: source, ...options });
     },
-    [processFile],
+    [processFile, markMediaFailed],
   );
 
   return { cancel, loadFromCatalog, loadFromUrl, pendingConfirmation, resolveConfirmation };
@@ -249,13 +250,32 @@ const runBackgroundFetch = async (
   abortRef.current?.abort();
   const controller = new AbortController();
   abortRef.current = controller;
+  const { setMediaDownload } = useAppStore.getState();
+  setMediaDownload({ kind: 'downloading' });
+  let lastPercent: number | undefined;
   try {
     const file = await fetchRemoteAudio(url, {
       filename: expectedFilename,
+      onProgress: ({ fraction }) => {
+        const percent = fraction === undefined ? undefined : Math.round(fraction * 100);
+        if (percent === lastPercent) {
+          return;
+        }
+        lastPercent = percent;
+        setMediaDownload({ fraction, kind: 'downloading' });
+      },
       signal: controller.signal,
     });
+    if (abortRef.current !== controller) {
+      return;
+    }
+    setMediaDownload({ kind: 'idle' });
     setAudioFile(file);
   } catch (error) {
+    if (abortRef.current !== controller) {
+      return;
+    }
+    setMediaDownload({ kind: 'failed' });
     if (isAbortError(error)) {
       return;
     }

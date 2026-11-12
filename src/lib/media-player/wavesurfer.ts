@@ -4,7 +4,7 @@ import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import ZoomPlugin from 'wavesurfer.js/dist/plugins/zoom.esm.js';
 import { createEmitter } from './emitter';
 import { createWavesurferRegionSync } from './region-sync/wavesurfer';
-import type { DesiredRegions, MediaPlayer, MediaPlayerEvent, MediaPlayerState, Viewport } from './types';
+import type { DesiredRegions, LoadPhase, MediaPlayer, MediaPlayerEvent, MediaPlayerState, Viewport } from './types';
 import { computeZoomWindow } from './zoom-math';
 
 export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (speaker: number) => string, media?: HTMLMediaElement | null): MediaPlayer => {
@@ -39,9 +39,16 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
     duration: 0,
     isPlaying: false,
     isReady: false,
+    loadPhase: 'idle',
     minPxPerSec: 0,
     pxPerSec: 0,
     viewport: { pixelsPerSecond: 0, visibleEndTime: 0, visibleStartTime: 0 },
+  };
+
+  const setLoadPhase = (phase: LoadPhase): void => {
+    state.loadPhase = phase;
+    state.isReady = phase === 'ready';
+    emit({ phase, type: 'load-phase' });
   };
 
   const updateMinPxPerSec = (): number => {
@@ -95,15 +102,26 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
   let pendingRegions: DesiredRegions | null = null;
 
   const unsubReady = ws.on('ready', (duration: number) => {
+    // wavesurfer still fires 'ready' for a superseded load, but only sets the phase for a current one.
+    if (ws.getState().loadPhase.value !== 'ready') {
+      return;
+    }
     state.duration = duration;
-    state.isReady = true;
     updateMinPxPerSec();
     state.pxPerSec = state.minPxPerSec;
+    setLoadPhase('ready');
     emit({ duration, type: 'ready' });
     emitFullViewport();
     if (pendingRegions) {
       regionSync.sync(pendingRegions);
       pendingRegions = null;
+    }
+  });
+
+  // wavesurfer never reports 'fetching' for blobs, so 'loading' is set by loadBlob.
+  const unsubLoadPhase = ws.getState().loadPhase.subscribe((phase) => {
+    if (phase === 'decoding' || phase === 'error') {
+      setLoadPhase(phase);
     }
   });
 
@@ -170,6 +188,7 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
     clientXToTime: (clientX) => regionSync.clientXToTime(clientX),
     dispose: () => {
       unsubReady();
+      unsubLoadPhase();
       unsubPlay();
       unsubPause();
       unsubTime();
@@ -191,6 +210,7 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
         return;
       }
       loadedFile = file;
+      setLoadPhase('loading');
       await ws.loadBlob(file);
     },
     on: events.on,
